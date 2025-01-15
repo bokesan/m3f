@@ -1,0 +1,5 @@
+#+CCL (require 'asdf)
+#+CCL (push (uiop/os:getcwd) ql:*local-project-directories*)
+;; (ql:quickload "m3f")
+(asdf:make :m3f/executable)
+#+CCL (quit)

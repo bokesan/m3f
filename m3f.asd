@@ -2,12 +2,14 @@
   :version "0.1"
   :depends-on ("alexandria")
   :pathname "src"
-  :components ((:file "binary")
-	       (:file "info" :depends-on ("binary"))))
+  :components ((:file "arrays")
+	       (:file "binary" :depends-on ("arrays"))
+	       (:file "tiff" :depends-on ("binary"))
+	       (:file "report" :depends-on ("tiff"))))
 
 (defsystem "m3f/executable"
   :build-operation program-op
-  :build-pathname "lencheck-exe"
+  :build-pathname "m3f"
   :entry-point "cli:main"
   :depends-on ("m3f" "clingon")
   :pathname "src"

@@ -1,3 +1,15 @@
+*~
+*.bak
+*.tmp
+*.3FR
+*.fff
+/system-index.txt
+/m3f
+/m3f-ccl
+*.exe
+*.obj
+*.o
+*.so
 *.FASL
 *.fasl
 *.lisp-temp

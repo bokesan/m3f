@@ -14,20 +14,24 @@
 	(max-bytes (clingon:getopt cmd :max-bytes)))
     (if (null files)
 	(clingon:print-usage cmd t)
-	(map nil
-	     #'(lambda (f)
-		 (when (cdr files)
-		   (format t "======== ~A~%" f))
-		 (tiff:show f
-			    :summary (not (or all privacy diff))
-			    :filter (cond ((and all privacy) :sensitive)
-					  ((and all diff) :diff)
-					  (all :all)
-					  (privacy :known-sensitive)
-					  (diff :known-diff)
-					  (t :known))
-			    :show-layout map-p :max-bytes max-bytes :decode-words decode-words))
-	     files))))
+	(dolist (f files)
+	  (when (cdr files)
+	    (format t "======== ~A~%" f))
+	  (let ((tiff (tiff:read-tiff f :max-bytes max-bytes)))
+	    (cond ((not (or all privacy diff map-p))
+		   (report:summary tiff))
+		  (t (when (or all privacy diff)
+		       (report:detail tiff t
+				      :filter (cond ((and all privacy) :sensitive)
+						    ((and all diff) :diff)
+						    (all :all)
+						    (privacy :known-sensitive)
+						    (diff :known-diff)
+						    (t :known))
+				      :max-bytes max-bytes
+				      :words decode-words))
+		     (when map-p
+		       (report:layout tiff)))))))))
 
 (defun top-level/options ()
   "Creates and returns the options for the top-level command"

@@ -1,4 +1,5 @@
 (defpackage :arrays
+  (:documentation "Utility functions for arrays.")
   (:use :cl)
   (:import-from :alexandria :array-index :array-length)
   (:export :copy-bytes))

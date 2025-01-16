@@ -21,7 +21,7 @@
 	    (cond ((not (or all privacy diff map-p))
 		   (report:summary tiff))
 		  (t (when (or all privacy diff)
-		       (report:detail tiff t
+		       (report:detail tiff
 				      :filter (cond ((and all privacy) :sensitive)
 						    ((and all diff) :diff)
 						    (all :all)

@@ -6,9 +6,10 @@
            :ifd-entry :ifd-entry-tag :ifd-entry-type :ifd-entry-count :ifd-entry-values
 	   :tiff-tag-info :tiff-type-name
 	   :metering-mode-name
-   :decode-white-balance
+	   :decode-white-balance
 	   :decode-release-mode
 	   :decode-crop-mode
+	   :volatile-tag-p :sensitive-tag-p
            :region :region-start :region-end :region-description))
 
 (in-package :tiff)
@@ -482,7 +483,7 @@
     (#xC62C "Baseline Sharpness")
     (#xC62F "Camera Serial Number")
     (#xC632 "AntiAliasStrength")
-    (#xC65D "ImageUniqueID2")
+    (#xC65D "RawDataUniqueID")
     (#xC68E "MaskedAreas")))
 
 (defun decode-white-balance (v)

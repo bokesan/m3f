@@ -87,8 +87,8 @@
     (when-let ((wb (decode-white-balance (tag-value tiff #x0005))))
       (val "White Balance" wb))
     (when-let ((mode (tag-value tiff #x005B)))
-      (label "Release Mode")
-      (let ((count (and (/= mode 0) (tag-value tiff #x005C)))
+      (label "Drive Mode")
+      (let ((count (and (/= mode 0) (/= mode 2) (tag-value tiff #x005C)))
 	    (name (decode-drive-mode mode)))
 	(if count
 	    (format stream "~A, image ~D" name count)

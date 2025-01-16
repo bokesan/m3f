@@ -7,9 +7,11 @@
 	   :tiff-tag-info :tiff-type-name
 	   :metering-mode-name
 	   :decode-white-balance
-	   :decode-release-mode
-	   :decode-crop-mode
+	   :decode-drive-mode
+           :decode-crop-mode
+           :decode-orientation
 	   :volatile-tag-p :sensitive-tag-p
+	   :read-hex
            :region :region-start :region-end :region-description))
 
 (in-package :tiff)
@@ -262,6 +264,16 @@
     (254 "Centre Spot")	; Hasselblad
     (255 "Other")))
 
+(defun decode-orientation (values)
+  (case values
+    (1 "Horizontal (normal)")
+    (2 "Mirror horizontal")
+    (3 "Rotate 180")
+    (4 "Mirror vertical")
+    (5 "Mirror horizontal and rotate 270 CW")
+    (6 "Rotate 90 CW")
+    (7 "Mirror horizontal and rotate 90 CW")
+    (8 "Rotate 270 CW")))
 
 (defparameter *standard-tags*  
   `((#x00FE "NewSubfileType"
@@ -310,17 +322,7 @@
     (#x010F "Make")
     (#x0110 "Model")
     (#x0111 "StripOffsets")
-    (#x0112 "Orientation"
-	    ,#'(lambda (values)
-		 (case values
-		   (1 "Horizontal (normal)")
-		   (2 "Mirror horizontal")
-		   (3 "Rotate 180")
-		   (4 "Mirror vertical")
-		   (5 "Mirror horizontal and rotate 270 CW")
-		   (6 "Rotate 90 CW")
-		   (7 "Mirror horizontal and rotate 90 CW")
-		   (8 "Rotate 270 CW"))))
+    (#x0112 "Orientation" ,#'decode-orientation)
     (#x0115 "SamplesPerPixel")
     (#x0116 "RowsPerStrip")
     (#x0117 "StripByteCounts")
@@ -512,12 +514,10 @@
 		    (11 "2:1 (6x12)")
 		    (12 "65:24 (XPan)")
 		    (t "unknown"))))
-	(format nil "~A [~Sx~S +~S,~S]" crop
-		(aref values 3) (aref values 4)
-		(aref values 1) (aref values 2)))
+	(format nil "~A: ~Sx~S" crop (aref values 3) (aref values 4)))
       nil))
 
-(defun decode-release-mode (values)
+(defun decode-drive-mode (values)
   (case values
     (0 "Single Shot")
     (1 "Continuous")
@@ -550,8 +550,8 @@
 		 (1 "electronic shutter"))))
     (#x59 "Crop Mode"			; only in .3FR
 	  ,#'decode-crop-mode)
-    (#x5B "Release mode" ,#'decode-release-mode)
-    (#x5C "Bracket sequence number")
+    (#x5B "Release Mode" ,#'decode-drive-mode)
+    (#x5C "Release Count")
     ;; 5E
     ;; 5F related to shutter type. On Mode A, 1 is leaf, 0 is electronic.
     ;;    But on FULL AUTO mode, it is always 5E == 2 and 5F == 0, regardless of shutter type

@@ -19,6 +19,7 @@
     (tags "Device" #x0110 #x0015)
     (tags "Created" #x9003)
     (label "Dimensions")
+    ;; TODO: flip x and y for vertical orientation
     (let ((d (tag-value tiff #xC620))
 	  (crop (tag-value tiff #x0059)))
       (when (and (vectorp d) (= (length d) 2))
@@ -49,17 +50,21 @@
 	(t (format stream "~A [~S]~%" shutter mode))))
     (label "Aperture")
     (when-let ((fnum (tag-value tiff #x829D #x9202)))
+      ;; Phocus displays with trailing zero decimal, i.e. "f/4.0"
       (format stream "f/~F" fnum))
     (format stream "~%")
     (let ((mode (tag-value tiff #x9207))
 	  (compensation (tag-value tiff #x9204))
 	  (manual-exposure-p (equalp 1 (tag-value tiff #x8822))))
+      ;; Typical display: "Centre W +0.7 EV"
+      ;; TODO: round compensation to 1/2 stop / 1/3 stop values, except in M
       (label "Light Meter")
       (format stream "~A" (metering-mode-name mode))
       (when (and compensation (not (zerop compensation)))
+	;; In M mode, Phocus does not show this field, so put it in parens
 	(if manual-exposure-p
-	    (format stream " (exposure: ~,2@F)" compensation)
-	    (format stream " ~,2@F" compensation)))
+	    (format stream " (exposure: ~,2@F EV)" compensation)
+	    (format stream " ~,2@F EV" compensation)))
       (format stream "~%"))
     (let* ((mode-value (tag-value tiff #x8822))
 	   (special (tag-value tiff #x005E))

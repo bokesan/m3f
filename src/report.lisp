@@ -16,89 +16,94 @@
 	   (val (s v)
 	     (label s)
 	     (format stream "~A~%" v)))
-    (tags "Device" #x0110 #x0015)
-    (tags "Created" #x9003)
-    (label "Dimensions")
-    ;; TODO: flip x and y for vertical orientation
-    (let ((d (tag-value tiff #xC620))
-	  (crop (tag-value tiff #x0059)))
-      (when (and (vectorp d) (= (length d) 2))
-	(format stream "~Ax~A" (aref d 0) (aref d 1))
-	(when (and (vectorp crop) (/= (aref crop 0) 1))
-	  (format stream ", crop mode ~A" (decode-crop-mode crop)))))
-    (format stream "~%")
-    (label "Lens")
-    (when-let ((lens (tag-value tiff #xA434)))
-      (format stream "~A" lens)
-      (when-let ((snr (decode-hasselblad-snr (tag-value tiff #xA435 #x0061))))
-        (format stream ", serial number: ")
-	(if (consp snr)
-	    (format stream "~A (year: ~A, product code: ~A)"
-		    (first snr) (second snr) (third snr))
-	    (format stream "~A" snr))))
-    (format stream "~%")
-    (val "Converter" "?") ; TODO
-    (val "Extension" "?") ; TODO
-    (val "HTS" "?") ; TODO
-    (tags "ISO" #x8827)
-    (label "Shutter")
-    (let ((shutter (tag-value tiff #x829A #x9201 #x0063))
-	  (mode (tag-value tiff #x004A)))
-      (case mode
-	((nil 0) (format stream "~A~%" shutter))
-	(1 (format stream "~A [E]~%" shutter))
-	(t (format stream "~A [~S]~%" shutter mode))))
-    (label "Aperture")
-    (when-let ((fnum (tag-value tiff #x829D #x9202)))
-      ;; Phocus displays with trailing zero decimal, i.e. "f/4.0"
-      (format stream "f/~F" fnum))
-    (format stream "~%")
-    (let ((mode (tag-value tiff #x9207))
-	  (compensation (tag-value tiff #x9204))
-	  (manual-exposure-p (equalp 1 (tag-value tiff #x8822))))
-      ;; Typical display: "Centre W +0.7 EV"
-      ;; TODO: round compensation to 1/2 stop / 1/3 stop values, except in M
-      (label "Light Meter")
-      (format stream "~A" (metering-mode-name mode))
-      (when (and compensation (not (zerop compensation)))
-	;; In M mode, Phocus does not show this field, so put it in parens
-	(if manual-exposure-p
-	    (format stream " (exposure: ~,2@F EV)" compensation)
-	    (format stream " ~,2@F EV" compensation)))
-      (format stream "~%"))
-    (let* ((mode-value (tag-value tiff #x8822))
-	   (special (tag-value tiff #x005E))
-	   (mode (case mode-value
-		   (1 "Manual")
-		   (2 (if (and special (= special 2)) "Full Auto" "Program"))
-		   (3 "Aperture")
-		   (4 "Shutter")
-		   (t (format nil "Unknown (~S)" mode-value)))))
-      (val "Exposure Mode" mode))
-    (val "Focus Mode"
-	 (let ((xs (tag-value tiff #x0017)))
-	   (if (and (vectorp xs) (= (length xs) 17) (= (aref xs 0) 1)
-		    (or (= (aref xs 1) 2) (= (aref xs 1) #x42)))
-	       (if (= (aref xs 1) 2) "Manual" "Single")
-	       "?"))) ; TODO
-    (val "Serial Number" (get-serial-number tiff))
-    (val "GPS Coordinate" "?") ; TODO
-    ;; Not displayed in Phocus:
-    (when-let ((rot (decode-orientation (tag-value tiff #x0112))))
-      (val "Orientation" rot))
-    (when-let ((q (get-raw-quality tiff)))
-      (label "Quality")
-      (format stream "~A bit~%" q))
-    (when-let ((wb (decode-white-balance (tag-value tiff #x0005))))
-      (val "White Balance" wb))
-    (when-let ((mode (tag-value tiff #x005B)))
-      (label "Drive Mode")
-      (let ((count (and (/= mode 0) (/= mode 2) (tag-value tiff #x005C)))
-	    (name (decode-drive-mode mode)))
-	(if count
-	    (format stream "~A, image ~D" name count)
-	    (format stream "~A" name)))
-      (format stream "~%"))))
+    (let ((orientation (tag-value tiff #x0112))
+	  (exposure-mode (tag-value tiff #x8822)))
+      (tags "Device" #x0110 #x0015)
+      (tags "Created" #x9003)
+      (label "Dimensions")
+      ;; TODO: flip x and y for vertical orientation
+      (let ((d (tag-value tiff #xC620))
+	    (crop (tag-value tiff #x0059)))
+	(when (and (vectorp d) (= (length d) 2))
+	  (let ((width (aref d 0))
+		(height (aref d 1))
+		(tall-p (portrait-orientation-p orientation)))
+	    (if tall-p
+		(format stream "~Ax~A" height width)
+		(format stream "~Ax~A" width height))
+	    (when (and (vectorp crop) (/= (aref crop 0) 1))
+	      (format stream ", crop mode ~A" (decode-crop-mode crop tall-p))))))
+      (format stream "~%")
+      (label "Lens")
+      (when-let ((lens (tag-value tiff #xA434)))
+        (format stream "~A" lens)
+	(when-let ((snr (decode-hasselblad-snr (tag-value tiff #xA435 #x0061))))
+          (format stream ", serial number: ")
+	  (if (consp snr)
+	      (format stream "~A (year: ~A)"
+		      (first snr) (second snr))
+	      (format stream "~A" snr))))
+      (format stream "~%")
+      (val "Converter" "?") ; TODO
+      (val "Extension" "?") ; TODO
+      (val "HTS" "?") ; TODO
+      (tags "ISO" #x8827)
+      (label "Shutter")
+      (let ((shutter (tag-value tiff #x829A #x9201 #x0063))
+	    (mode (tag-value tiff #x004A)))
+	(case mode
+	  ((nil 0) (format stream "~A~%" shutter))
+	  (1 (format stream "~A [E]~%" shutter))
+	  (t (format stream "~A [~S]~%" shutter mode))))
+      (label "Aperture")
+      (when-let ((fnum (tag-value tiff #x829D #x9202)))
+		;; Phocus displays with trailing zero decimal, i.e. "f/4.0"
+		(format stream "f/~F" fnum))
+      (format stream "~%")
+      (let ((mode (tag-value tiff #x9207))
+	    (compensation (tag-value tiff #x9204))
+	    (manual-exposure-p (equalp 1 exposure-mode)))
+	;; Typical display: "Centre W +0.7 EV"
+	;; TODO: round compensation to 1/2 stop / 1/3 stop values, except in M
+	(label "Light Meter")
+	(format stream "~A" (metering-mode-name mode))
+	(when (and compensation (not (zerop compensation)))
+	  ;; In M mode, Phocus does not show this field, so put it in parens
+	  (if manual-exposure-p
+	      (format stream " (exposure: ~,2@F EV)" compensation)
+	      (format stream " ~,2@F EV" compensation)))
+	(format stream "~%"))
+      (let* ((special (tag-value tiff #x005E))
+	     (mode (case exposure-mode
+		     (1 "Manual")
+		     (2 (if (and special (= special 2)) "Full Auto" "Program"))
+		     (3 "Aperture")
+		     (4 "Shutter")
+		     (t (format nil "Unknown (~S)" exposure-mode)))))
+	(val "Exposure Mode" mode))
+      (val "Focus Mode"
+	   (let ((xs (tag-value tiff #x0017)))
+	     (if (and (vectorp xs) (= (length xs) 17) (= (aref xs 0) 1)
+		      (or (= (aref xs 1) 2) (= (aref xs 1) #x42)))
+		 (if (= (aref xs 1) 2) "Manual" "Single")
+		 "?"))) ; TODO
+      (val "Serial Number" (get-serial-number tiff))
+      (val "GPS Coordinate" "?") ; TODO
+      ;; Not displayed in Phocus:
+      (when-let ((rot (decode-orientation orientation)))
+        (val "Orientation" rot))
+      (when-let ((q (get-raw-quality tiff)))
+        (val "Quality" q))
+      (when-let ((wb (decode-white-balance (tag-value tiff #x0005))))
+        (val "White Balance" wb))
+      (when-let ((mode (tag-value tiff #x005B)))
+        (label "Drive Mode")
+	(let ((count (and (/= mode 0) (/= mode 2) (tag-value tiff #x005C)))
+	      (name (decode-drive-mode mode)))
+	  (if count
+	      (format stream "~A, image ~D" name count)
+	      (format stream "~A" name)))
+	(format stream "~%")))))
 
 (defun get-serial-number (tiff)
   "Extract Hasselblad camera serial number."
@@ -295,13 +300,13 @@
 
 
 (defun get-raw-quality (raw)
+  "Get raw quality from #x0013. Return NIL if not present."
   (declare (type tiff raw))
   (let ((values (tag-value raw #x0013)))
-    (if (and values
-	     (vectorp values)
-	     (= (length values) 2)
-	     (or (= (aref values 1) (* 16 512))
-		 (= (aref values 1) (* 14 512))
-		 (= (aref values 1) (* 12 512))))
-	(/ (aref values 1) 512)
+    (if (and (vectorp values) (= (length values) 2))
+	(let ((flags (aref values 0))
+	      (depth (/ (aref values 1) 512)))
+	  (format nil "~A bit~A"
+		  depth
+		  (if (zerop (logand flags 4096)) "" " HNNR")))
 	nil)))

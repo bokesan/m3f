@@ -9,7 +9,7 @@
 	   :decode-white-balance
 	   :decode-drive-mode
            :decode-crop-mode
-           :decode-orientation
+           :decode-orientation :portrait-orientation-p
 	   :volatile-tag-p :sensitive-tag-p
 	   :read-hex
            :region :region-start :region-end :region-description))
@@ -264,6 +264,10 @@
     (254 "Centre Spot")	; Hasselblad
     (255 "Other")))
 
+(defun portrait-orientation-p (values)
+  "Check if the given orientation code is a portrait orientation."
+  (and (numberp values) (> values 4)))
+
 (defun decode-orientation (values)
   (case values
     (1 "Horizontal (normal)")
@@ -451,14 +455,17 @@
 	    ;; first 16 characters are 12 x '0' followed by the product code ASCII values
 	    ;; in hex, e.g. "0000000000004A54" for product code "JT".
 	    ;; The seconds half (also 16 characters) are the same as tag C65D.
+	    ;; Images exported from Phocus Mobile seem to have the higest bit of count set.
 	    ,#'(lambda (s)
 		 (if (and (stringp s) (= (length s) 32))
 		     (let ((pc1 (code-char (read-hex s 12 14)))
 			   (pc2 (code-char (read-hex s 14 16)))
 			   (snr (read-hex s 16 24))
 			   (count (read-hex s 24 32)))
-		       (format nil "~S (serial number: ~C~C~D, count: ~A)"
-			       s pc1 pc2 snr count))
+		       (format nil "~S (serial number: ~C~C~D, count: ~A~A)"
+			       s pc1 pc2 snr
+			       (logand count #x7fffffff)
+			       (if (zerop (logand count #x80000000)) "" ", Phocus Mobile")))
 		     nil)))
     (#xA430 "Owner Name")
     (#xA431 "Serial Number")
@@ -499,7 +506,7 @@
     (10 "Cloudy")
     (11 "Shade")))
 
-(defun decode-crop-mode (values)
+(defun decode-crop-mode (values &optional portrait-p)
   (if (and (vectorp values) (= (length values) 5))
       (let ((crop (case (aref values 0)
 		    (1 "No Crop (645)")
@@ -513,8 +520,10 @@
 		    (10 "16:9 (Screen)")
 		    (11 "2:1 (6x12)")
 		    (12 "65:24 (XPan)")
-		    (t "unknown"))))
-	(format nil "~A: ~Sx~S" crop (aref values 3) (aref values 4)))
+		    (t "unknown")))
+	    (w (aref values 3))
+	    (h (aref values 4)))
+	(format nil "~A: ~Sx~S" crop (if portrait-p h w) (if portrait-p w h)))
       nil))
 
 (defun decode-drive-mode (values)

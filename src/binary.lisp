@@ -5,6 +5,7 @@
   (:import-from :arrays :copy-bytes)
   (:export :binary-buffer :binary-buffer-p
 	   :binary-buffer-big-endian-p
+	   :binary-buffer-length
 	   :with-binary-buffer
 	   :get-u8 :get-s8 :get-u16 :get-s16 :get-u32 :get-s32 :get-bytes))
 
@@ -15,7 +16,7 @@
 		 binary-buffer-big-endian-p
 		 binary-buffer-chunk-size
 		 binary-buffer-chunks
-		 binary-buffer-eof-p))
+		 binary-buffer-length))
 
 (defstruct binary-buffer
   (stream (error "missing :stream") :type stream :read-only t)
@@ -23,7 +24,8 @@
   ;; min chunk size 7 so that largest word (8 bytes) covers at most 2 chunks
   (chunk-size 65536 :type (integer 7 #x80000000) :read-only t)
   (chunks nil :type (array (simple-array (unsigned-byte 8) 1) 1) :read-only t)
-  (eof-p nil :type boolean))
+  ;; length is set when end of file has been reached
+  (length nil :type (or null unsigned-byte)))
 
 #+SBCL (declaim (sb-ext:freeze-type binary-buffer))
 
@@ -34,7 +36,6 @@
    :chunks (make-array 10 :adjustable t :fill-pointer 0)))
 
 (defun close (bs)
-  (setf (binary-buffer-eof-p bs) t)
   (cl:close (binary-buffer-stream bs)))
 
 (defmacro with-binary-buffer ((buf stream &rest options) &body body)
@@ -59,8 +60,8 @@
 	 (chunk-size (binary-buffer-chunk-size bs))
 	 (len (length chunks)))
     (unless (< i len)
-      (when (binary-buffer-eof-p bs)
-	(error 'end-of-file))
+      (when (binary-buffer-length bs)
+	(error (make-condition 'end-of-file :stream (binary-buffer-stream bs))))
       (do ((k len (+ k 1)))
 	  ((> k i))
 	(let* ((chunk (make-array chunk-size :element-type '(unsigned-byte 8)))
@@ -72,7 +73,7 @@
 		 (adjust-array chunk bytes-read))
 	     chunks))
 	  (when (< bytes-read chunk-size)
-	    (setf (binary-buffer-eof-p bs) t)))))
+	    (setf (binary-buffer-length bs) (+ (* k chunk-size) bytes-read))))))
     (aref chunks i)))
 
 (declaim
@@ -90,7 +91,7 @@
       (index bs offs)
     (let ((chunk (get-chunk bs ci)))
       (when (>= co (length chunk))
-	(error 'end-of-file))
+	(error (make-condition 'end-of-file :stream (binary-buffer-stream bs))))
       (aref chunk co))))
 
 (defun get-u16 (bs offs)

@@ -535,17 +535,24 @@
     (4 "Exposure Bracketing")
     (5 "Focus Bracketing")))
 
+(defun hex+binary (values)
+  (typecase values
+    (string values)
+    (integer (format nil "~X (~B)" values values))
+    (vector
+     (let ((s (make-string-output-stream))
+	   (sep ""))
+       (loop for v across values do
+	    (write-string sep s)
+	    (setq sep "  ")
+	    (if (integerp v)
+		(format s "~X (~B)" v v)
+		(prin1 v s)))
+       (get-output-stream-string s)))))
+
 (defparameter *hasselblad-makernote-tags*
   `((#x05 "WhiteBalance" ,#'decode-white-balance)
-    (#x13 "Quality?"
-	  ,#'(lambda (values)
-	       (if (and (vectorp values) (= (length values) 2)
-			(or (= (aref values 1) (* 16 512))
-			    (= (aref values 1) (* 14 512))
-			    (= (aref values 1) (* 12 512))))
-		   (format nil "~A bit (~S ~S)" (/ (aref values 1) 512)
-			   (aref values 0) (aref values 1))
-		   nil)))
+    (#x13 "Quality?" ,#'hex+binary)
     (#x15 "Model")
     (#x28 "PhocusVersion")
     ;; #x002A only .fff - almost same values as C621 (Color Matrix 1), but with the leading 1 values.
@@ -611,13 +618,15 @@
       (note-region info 0 2 "BOM")
       (note-region info 2 2 "Magic")
       (note-region info 4 4 "First IFD address")
-      (do ((rest-ifds (list (cons (cons "IFD" 0) (get-u32 bytes 4)))))
+      (do ((rest-ifds (list (cons (cons "IFD" 0) (get-u32 bytes 4))) (cdr rest-ifds)))
 	  ((null rest-ifds))
 	(destructuring-bind (name . addr) (car rest-ifds)
-	  (multiple-value-bind (ifd more-ifds)
-	      (parse-ifd bytes info name addr)
-	    (push ifd ifds)
-	    (setq rest-ifds (append (cdr rest-ifds) more-ifds)))))
+	  (handler-case
+	      (multiple-value-bind (ifd more-ifds)
+		  (parse-ifd bytes info name addr)
+		(push ifd ifds)
+		(setq rest-ifds (append rest-ifds more-ifds)))
+	    (end-of-file () (format t "warning: EOF while reading IFD ~S at 0x~8,'0X~%" name addr)))))
       (setf (tiff-ifds info) (sort (coerce ifds 'vector) #'< :key #'ifd-address))
       (setf (tiff-regions info) (sort (coerce (tiff-regions info) 'vector) #'region-precedes-p))
       info)))
@@ -699,7 +708,11 @@
 			      :value-address (if (ifd-value-inline-p type count)
 						 voffs
 						 (get-u32 buf voffs))
-			      :values (get-values buf tag type count voffs)))))
+			      :values (handler-case (get-values buf tag type count voffs)
+					(end-of-file ()
+					  (format t "warning: EOF while reading values of ~a~a entry ~a~%"
+						  (car name) (cdr name) i)
+					  :EOF))))))
     (unless (= (length strip-offsets) (length strip-byte-counts))
       (error "StripOffsets / StripByteCounts mismatch: ~S ~S" (length strip-offsets) (length strip-byte-counts)))
     (dotimes (i (length strip-offsets))

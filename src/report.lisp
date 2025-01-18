@@ -21,7 +21,6 @@
       (tags "Device" #x0110 #x0015)
       (tags "Created" #x9003)
       (label "Dimensions")
-      ;; TODO: flip x and y for vertical orientation
       (let ((d (tag-value tiff #xC620))
 	    (crop (tag-value tiff #x0059)))
 	(when (and (vectorp d) (= (length d) 2))
@@ -268,6 +267,9 @@
 	((vector (unsigned-byte 8)) (show-bytes values max-bytes (if words :little) stream))
 	(vector (loop for v across values do (show-value v stream)))
 	(rational (show-value values stream))
+	(symbol (if (eq values :EOF)
+		    (format stream " (beyond end of file)")
+		    (format stream " ~S" values)))
 	(t (format stream " ~S" values))))
     (format stream "~%")))
 
@@ -305,8 +307,8 @@
   (let ((values (tag-value raw #x0013)))
     (if (and (vectorp values) (= (length values) 2))
 	(let ((flags (aref values 0))
-	      (depth (/ (aref values 1) 512)))
+	      (depth (ash (aref values 1) -9)))
 	  (format nil "~A bit~A"
 		  depth
-		  (if (zerop (logand flags 4096)) "" " HNNR")))
+		  (if (zerop (logand flags #x1000)) "" ", HNNR")))
 	nil)))

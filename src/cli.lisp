@@ -17,21 +17,23 @@
 	(dolist (f files)
 	  (when (cdr files)
 	    (format t "======== ~A~%" f))
-	  (let ((tiff (tiff:read-tiff f :max-bytes max-bytes)))
-	    (cond ((not (or all privacy diff map-p))
-		   (report:summary tiff))
-		  (t (when (or all privacy diff)
-		       (report:detail tiff
-				      :filter (cond ((and all privacy) :sensitive)
-						    ((and all diff) :diff)
-						    (all :all)
-						    (privacy :known-sensitive)
-						    (diff :known-diff)
-						    (t :known))
-				      :max-bytes max-bytes
-				      :words decode-words))
-		     (when map-p
-		       (report:layout tiff)))))))))
+	  (handler-case
+	      (let ((tiff (tiff:read-tiff f :max-bytes max-bytes)))
+		(cond ((not (or all privacy diff map-p))
+		       (report:summary tiff))
+		      (t (when (or all privacy diff)
+			   (report:detail tiff
+					  :filter (cond ((and all privacy) :sensitive)
+							((and all diff) :diff)
+							(all :all)
+							(privacy :known-sensitive)
+							(diff :known-diff)
+							(t :known))
+					  :max-bytes max-bytes
+					  :words decode-words))
+			 (when map-p
+			   (report:layout tiff)))))
+	    (end-of-file () (format t "error: end of file encountered, malformed tiff?~%")))))))
 
 (defun top-level/options ()
   "Creates and returns the options for the top-level command"

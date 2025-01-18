@@ -430,7 +430,7 @@
     (#x920A "FocalLength")
     (#x927C "MakerNote" ,#'(lambda (vs) (declare (ignore vs)) "(IFD)"))
     (#x9286 "UserComment")
-    (#xA001 "Color Space"
+    (#xA001 "ColorSpace"
 	    ,#'(lambda (v)
 		 (case v
 		   (1 "sRGB")
@@ -449,8 +449,8 @@
 		   (3 "cm")
 		   (4 "mm")
 		   (5 "µm"))))
-    (#xA405 "Focal Length in 35mm Format")
-    (#xA40C "Subject Distance Range")
+    (#xA405 "FocalLengthIn35mmFormat")
+    (#xA40C "SubjectDistanceRange")
     (#xA420 "ImageUniqueID"
 	    ;; first 16 characters are 12 x '0' followed by the product code ASCII values
 	    ;; in hex, e.g. "0000000000004A54" for product code "JT".
@@ -467,30 +467,30 @@
 			       (logand count #x7fffffff)
 			       (if (zerop (logand count #x80000000)) "" ", Phocus Mobile")))
 		     nil)))
-    (#xA430 "Owner Name")
-    (#xA431 "Serial Number")
-    (#xA432 "Lens Info")
-    (#xA433 "Lens Make")
-    (#xA434 "Lens Model")
-    (#xA435 "Lens Serial Number")
+    (#xA430 "OwnerName")
+    (#xA431 "SerialNumber")
+    (#xA432 "LensInfo")
+    (#xA433 "LensMake")
+    (#xA434 "LensModel")
+    (#xA435 "LensSerialNumber")
     (#xB4C3 "HasselbladRawImage")
-    (#xC519 "HasselbladXML (PLIST)")
+    (#xC519 "HasselbladXML") ; PLIST
     (#xC51B "HasselbladExif")
     (#xC614 "UniqueCameraModel")
     (#xC61A "BlackLevel")
     (#xC61D "WhiteLevel")
     (#xC61F "DefaultCropOrigin")
     (#xC620 "DefaultCropSize")
-    (#xC621 "Color Matrix 1")		; only in .3FR
-    (#xC622 "Color Matrix 2")
-    (#xC623 "Camera Calibration 1")
-    (#xC624 "Camera Calibration 2")
-    (#xC627 "Analog Balance")		; only in .fff
-    (#xC628 "As Shot Neutral")
-    (#xC62A "Baseline Exposure")
-    (#xC62B "Baseline Noise")
-    (#xC62C "Baseline Sharpness")
-    (#xC62F "Camera Serial Number")
+    (#xC621 "ColorMatrix1")		; only in .3FR
+    (#xC622 "ColorMatrix2")
+    (#xC623 "CameraCalibration1")
+    (#xC624 "CameraCalibration2")
+    (#xC627 "AnalogBalance")		; only in .fff
+    (#xC628 "AsShotNeutral")
+    (#xC62A "BaselineExposure")
+    (#xC62B "BaselineNoise")
+    (#xC62C "BaselineSharpness")
+    (#xC62F "CameraSerialNumber")
     (#xC632 "AntiAliasStrength")
     (#xC65D "RawDataUniqueID")
     (#xC68E "MaskedAreas")))
@@ -536,8 +536,8 @@
     (5 "Focus Bracketing")))
 
 (defparameter *hasselblad-makernote-tags*
-  `((#x05 "White balance setting" ,#'decode-white-balance)
-    (#x13 "Quality"
+  `((#x05 "WhiteBalance" ,#'decode-white-balance)
+    (#x13 "Quality?"
 	  ,#'(lambda (values)
 	       (if (and (vectorp values) (= (length values) 2)
 			(or (= (aref values 1) (* 16 512))
@@ -547,25 +547,26 @@
 			   (aref values 0) (aref values 1))
 		   nil)))
     (#x15 "Model")
-    (#x28 "Phocus Version")
+    (#x28 "PhocusVersion")
     ;; #x002A only .fff - almost same values as C621 (Color Matrix 1), but with the leading 1 values.
     ;; #x46 related somehow to ISO. On 50C, always == ISO / 100
     ;;      On 100C, 201/200 for ISO 64 and 25079/1000 for ISO 1600
-    (#x47 "Focus Point")
-    (#x4A "Shutter type"
+    (#x46 "Gain?")
+    (#x47 "FocusPoint")
+    (#x4A "ShutterType"
 	  ,#'(lambda (values)
 	       (case values
 		 (0 "leaf shutter")
 		 (1 "electronic shutter"))))
-    (#x59 "Crop Mode"			; only in .3FR
+    (#x59 "CropMode"			; only in .3FR
 	  ,#'decode-crop-mode)
-    (#x5B "Release Mode" ,#'decode-drive-mode)
-    (#x5C "Release Count")
+    (#x5B "ReleaseMode" ,#'decode-drive-mode)
+    (#x5C "ReleaseCount")
     ;; 5E
     ;; 5F related to shutter type. On Mode A, 1 is leaf, 0 is electronic.
     ;;    But on FULL AUTO mode, it is always 5E == 2 and 5F == 0, regardless of shutter type
-    (#x61 "Lens serial number")
-    (#x63 "Exact Exposure time")))
+    (#x61 "LensSerialNumber")
+    (#x63 "ExactExposureTime")))
 
 (defparameter *tag-info*
   (let* ((sources (list *standard-tags* *hasselblad-makernote-tags*))

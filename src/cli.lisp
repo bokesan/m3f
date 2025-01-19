@@ -4,6 +4,13 @@
 
 (in-package :cli)
 
+;; Don't add anything before these defparameter forms, because they are referenced
+;; by form number in the ASDF file. And don't change their order.
+(defparameter *version* "0.1.0")
+(defparameter *author* "Christoph Breitkopf <chbreitkopf@gmail.com>")
+(defparameter *description* "Extract metadata from Hasselblad raw images.")
+
+
 (defun top-level/handler (cmd)
   (let ((files (clingon:command-arguments cmd))
 	(map-p (clingon:getopt cmd :map))
@@ -81,9 +88,9 @@
   "Creates and returns the top-level command"
   (clingon:make-command
    :name "m3f"
-   :description "Show metadata of Hasselblad raw images."
-   :version "0.1.0"
-   :authors '("Christoph Breitkopf <chbreitkopf@gmail.com>")
+   :description *description*
+   :version *version*
+   :authors (list *author*)
    :usage "[option...] file..."
    :options (top-level/options)
    :handler #'top-level/handler))

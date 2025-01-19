@@ -1,5 +1,8 @@
 (defsystem "m3f"
-  :version "0.1.0"
+  :version (:read-file-form "src/cli.lisp" :at (2 2))
+  :author (:read-file-form "src/cli.lisp" :at (3 2))
+  :description (:read-file-form "src/cli.lisp" :at (4 2))
+  :license "MIT"
   :depends-on ("alexandria")
   :pathname "src"
   :components ((:file "arrays")

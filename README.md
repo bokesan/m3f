@@ -16,24 +16,26 @@ metadata in a format as close as possible to what the "Capture Info"
 tab in Phocus shows. For example:
 
 ```
-$ m3f B0001234.3FR
+$ m3f test/resources/raw1.3FR
         Device: CFV 100C/907X
-       Created: 2025:01:12 08:37:56
-    Dimensions: 11656x8742
-          Lens: XCD 30, serial number: 2WVU10787 (year: 2017)
+       Created: 2025:01:16 15:46:52
+    Dimensions: 8742x11656, crop mode 65:24 (XPan): 4302x11656
+          Lens: XCD 28P, serial number: 8QHI15094 (year: 2024)
      Converter: ?
      Extension: ?
            HTS: ?
            ISO: 400
-       Shutter: 1/100
-      Aperture: f/3.5
+       Shutter: 1/160
+      Aperture: f/4.0
    Light Meter: Centre W
- Exposure Mode: Full Auto
+ Exposure Mode: Aperture
     Focus Mode: Single
  Serial Number: JT63001117
 GPS Coordinate: ?
+   Orientation: Rotate 90 CW
        Quality: 16 bit
- White Balance: Auto
+ White Balance: Daylight
+    Drive Mode: Single Shot
 ```
 
 The lines up to and including "GPS Coordinate" should be identical to

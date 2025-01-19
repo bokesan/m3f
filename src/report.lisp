@@ -5,9 +5,8 @@
 
 (in-package :report)
 
-(declaim (ftype (function (tiff &optional t)) summary))
 
-(defun summary (tiff &optional (stream t))
+(defun summary (tiff &key (stream t) privacy)
   "Show metadata summary as in Phocus \"Capture Info\" tab."
   (labels ((label (s) (format stream "~14@A: " s))
 	   (tags (s &rest tags)
@@ -36,7 +35,7 @@
       (label "Lens")
       (when-let ((lens (tag-value tiff #xA434)))
         (format stream "~A" lens)
-	(when-let ((snr (decode-serial-number (tag-value tiff #xA435 #x0061))))
+	(when-let ((snr (and (not privacy) (decode-serial-number (tag-value tiff #xA435 #x0061)))))
           (format stream ", serial number: ")
 	  (if (consp snr)
 	      (format stream "~A (year: ~A)"
@@ -86,7 +85,8 @@
 		      (or (= (aref xs 1) 2) (= (aref xs 1) #x42)))
 		 (if (= (aref xs 1) 2) "Manual" "Single")
 		 "?"))) ; TODO
-      (val "Serial Number" (get-serial-number tiff))
+      (unless privacy
+	(val "Serial Number" (get-serial-number tiff)))
       (val "GPS Coordinate" "?") ; TODO
       ;; Not displayed in Phocus:
       (when-let ((rot (decode-orientation orientation)))

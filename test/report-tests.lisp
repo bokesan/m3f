@@ -9,7 +9,7 @@
 (test summary
       (let ((tiff (tiff:read-tiff "test/resources/raw1.3FR"))
 	    (s (make-string-output-stream)))
-	(report:summary tiff s)
+	(report:summary tiff :stream s)
 	(is (string=
 	     "        Device: CFV 100C/907X
        Created: 2025:01:16 15:46:52

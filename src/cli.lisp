@@ -27,7 +27,7 @@
 	  (handler-case
 	      (let ((tiff (tiff:read-tiff f :max-bytes max-bytes)))
 		(cond ((not (or all privacy diff map-p))
-		       (report:summary tiff))
+		       (report:summary tiff :privacy privacy))
 		      (t (when (or all privacy diff)
 			   (report:detail tiff
 					  :filter (cond ((and all privacy) :sensitive)
@@ -59,7 +59,8 @@
     :flag
     :short-name #\V :long-name "no-volatile"
     :key :no-volatile
-    :description "omit tags that change with each image, such as timestamps")
+    :description "omit tags that change with each image, such as timestamps.
+The image count for exposure or focus bracket sequences is not omitted.")
    (clingon:make-option
     :flag
     :short-name #\S :long-name "privacy"

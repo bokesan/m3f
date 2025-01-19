@@ -43,6 +43,7 @@ the information that is shown by Phocus, except that `m3f` will sometimes
 display more details, such as the lens serial number.
 
 A "?" means that I have not yet been able to decode the information.
+I need help with that; see [the wiki](https://github.com/bokesan/m3f/wiki/Help-decoding-metadata).
 
 Running `m3f` without arguments will display detailed usage
 information.

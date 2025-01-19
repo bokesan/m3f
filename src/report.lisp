@@ -18,7 +18,8 @@
     (let ((orientation (tag-value tiff #x0112))
 	  (exposure-mode (tag-value tiff #x8822)))
       (tags "Device" #x0110 #x0015)
-      (tags "Created" #x9003)
+      (unless privacy
+	(tags "Created" #x9003))
       (label "Dimensions")
       (let ((d (tag-value tiff #xC620))
 	    (crop (tag-value tiff #x0059)))
@@ -86,8 +87,8 @@
 		 (if (= (aref xs 1) 2) "Manual" "Single")
 		 "?"))) ; TODO
       (unless privacy
-	(val "Serial Number" (get-serial-number tiff)))
-      (val "GPS Coordinate" "?") ; TODO
+	(val "Serial Number" (get-serial-number tiff))
+	(val "GPS Coordinate" "?")) ; TODO
       ;; Not displayed in Phocus:
       (when-let ((rot (decode-orientation orientation)))
         (val "Orientation" rot))

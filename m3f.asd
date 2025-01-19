@@ -1,5 +1,5 @@
 (defsystem "m3f"
-  :version "0.1"
+  :version "0.1.0"
   :depends-on ("alexandria")
   :pathname "src"
   :components ((:file "arrays")
@@ -13,11 +13,10 @@
   :build-pathname "m3f"
   :entry-point "cli:main"
   :depends-on ("m3f" "clingon")
-  :pathname "src"
-  :components ((:file "cli")))
+  :components ((:file "src/cli")))
 
 (defsystem "m3f/tests"
     :depends-on ("fiveam" "m3f")
     :pathname "test"
-    :serial t
-    :components ((:file "test-tiff")))
+    :components ((:file "tiff-tests")
+		 (:file "report-tests")))

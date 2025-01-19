@@ -1,29 +1,20 @@
+LISP = sbcl
+LISP_FLAGS = --dynamic-space-size 4096 --non-interactive
+# LISP = ccl64
+# LISP_FLAGS =
+
 sources := $(wildcard src/*.lisp)
 test_sources := $(shell echo test/*.lisp)
 
 .PHONY: test clean
 
-ALL: m3f
+ALL: m3f test
 
 m3f: $(sources) m3f.asd compile.lisp
-	sbcl --dynamic-space-size 2048 --load compile.lisp
-	mv ./src/m3f .
+	$(LISP) $(LISP_FLAGS) --load compile.lisp
 
-m3f-ccl: $(sources) m3f.asd compile.lisp
-	ccl64 --load compile.lisp
-	mv ./src/m3f m3f-ccl
-
-test: $(sources) $(test_sources) m3f.asd test.lisp
-	sbcl --non-interactive --load test.lisp
-
-test-ap: m3f
-	./m3f illum test/Z7D_323[23456].NEF
-
-test-shift: m3f
-	./m3f illum -H 8 test/Z7D_323[789].NEF test/Z7D_324[01].NEF
-
-test-channels: m3f
-	./m3f illum --by-channel test/Z7D_3232.NEF
+test: $(sources) $(test_sources) m3f.asd run-tests.lisp
+	$(LISP) $(LISP_FLAGS) --load run-tests.lisp
 
 clean:
-	$(RM) m3f m3f-ccl
+	$(RM) m3f

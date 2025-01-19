@@ -36,9 +36,9 @@ GPS Coordinate: ?
  White Balance: Auto
 ```
 
-The lines up to and inclusing "GPS Coordinate" should be identical to
-the information shown in Phocus, exept that `m3f` will sometimes
-display more details, for example the lens serial number.
+The lines up to and including "GPS Coordinate" should be identical to
+the information that is shown by Phocus, except that `m3f` will sometimes
+display more details, such as the lens serial number.
 
 A "?" means that I have not yet been able to decode the information.
 

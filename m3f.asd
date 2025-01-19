@@ -5,7 +5,8 @@
   :components ((:file "arrays")
 	       (:file "binary" :depends-on ("arrays"))
 	       (:file "tiff" :depends-on ("binary"))
-	       (:file "report" :depends-on ("tiff"))))
+	       (:file "hasselblad")
+	       (:file "report" :depends-on ("tiff" "hasselblad"))))
 
 (defsystem "m3f/executable"
   :build-operation program-op

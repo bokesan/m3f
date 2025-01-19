@@ -4,11 +4,9 @@
   (:export :tiff :tiff-ifds :tiff-regions :read-tiff :tag-value
            :ifd :ifd-name :ifd-address :ifd-entries
            :ifd-entry :ifd-entry-tag :ifd-entry-type :ifd-entry-count :ifd-entry-values
-	   :tiff-tag-info :tiff-type-name
+	   :make-tag-table :*standard-tags*
+	   :tiff-type-name
 	   :metering-mode-name
-	   :decode-white-balance
-	   :decode-drive-mode
-           :decode-crop-mode
            :decode-orientation :portrait-orientation-p
 	   :volatile-tag-p :sensitive-tag-p
 	   :read-hex
@@ -75,9 +73,6 @@
   (push (make-region :start start :end (+ start len) :description name) (tiff-regions f)))
 
 #+SBCL (declaim (sb-ext:freeze-type ifd ifd-entry region tiff))
-
-(declaim (ftype (function ((unsigned-byte 16)) list) tiff-tag-info))
-
 
 (declaim (ftype (function (tiff (unsigned-byte 16))
 			  (or null ifd-entry))
@@ -495,89 +490,10 @@
     (#xC65D "RawDataUniqueID")
     (#xC68E "MaskedAreas")))
 
-(defun decode-white-balance (v)
-  (case v
-    (1 "Auto")
-    (2 "Daylight")
-    (3 "Tungsten")
-    (4 "Fluorescent")
-    (5 "Flash")
-    (6 "Manual")
-    (10 "Cloudy")
-    (11 "Shade")))
 
-(defun decode-crop-mode (values &optional portrait-p)
-  (if (and (vectorp values) (= (length values) 5))
-      (let ((crop (case (aref values 0)
-		    (1 "No Crop (645)")
-		    (2 "1:1 (6x6)")
-		    (3 "7:6 (6x7)")
-		    (4 "5:4 (4x5)")
-		    (5 "11:8.5 (Letter)")
-		    (7 "297:210 (A4)")
-		    (8 "3:2 (6x9)")
-		    (9 "3:2 Crop (24x36)")
-		    (10 "16:9 (Screen)")
-		    (11 "2:1 (6x12)")
-		    (12 "65:24 (XPan)")
-		    (t "unknown")))
-	    (w (aref values 3))
-	    (h (aref values 4)))
-	(format nil "~A: ~Sx~S" crop (if portrait-p h w) (if portrait-p w h)))
-      nil))
-
-(defun decode-drive-mode (values)
-  (case values
-    (0 "Single Shot")
-    (1 "Continuous")
-    (2 "Self Timer")
-    (3 "Interval")
-    (4 "Exposure Bracketing")
-    (5 "Focus Bracketing")))
-
-(defun hex+binary (values)
-  (typecase values
-    (string values)
-    (integer (format nil "~X (~B)" values values))
-    (vector
-     (let ((s (make-string-output-stream))
-	   (sep ""))
-       (loop for v across values do
-	    (write-string sep s)
-	    (setq sep "  ")
-	    (if (integerp v)
-		(format s "~X (~B)" v v)
-		(prin1 v s)))
-       (get-output-stream-string s)))))
-
-(defparameter *hasselblad-makernote-tags*
-  `((#x05 "WhiteBalance" ,#'decode-white-balance)
-    (#x13 "Quality?" ,#'hex+binary)
-    (#x15 "Model")
-    (#x28 "PhocusVersion")
-    ;; #x002A only .fff - almost same values as C621 (Color Matrix 1), but with the leading 1 values.
-    ;; #x46 related somehow to ISO. On 50C, always == ISO / 100
-    ;;      On 100C, 201/200 for ISO 64 and 25079/1000 for ISO 1600
-    (#x46 "Gain?")
-    (#x47 "FocusPoint")
-    (#x4A "ShutterType"
-	  ,#'(lambda (values)
-	       (case values
-		 (0 "leaf shutter")
-		 (1 "electronic shutter"))))
-    (#x59 "CropMode"			; only in .3FR
-	  ,#'decode-crop-mode)
-    (#x5B "ReleaseMode" ,#'decode-drive-mode)
-    (#x5C "ReleaseCount")
-    ;; 5E
-    ;; 5F related to shutter type. On Mode A, 1 is leaf, 0 is electronic.
-    ;;    But on FULL AUTO mode, it is always 5E == 2 and 5F == 0, regardless of shutter type
-    (#x61 "LensSerialNumber")
-    (#x63 "ExactExposureTime")))
-
-(defparameter *tag-info*
-  (let* ((sources (list *standard-tags* *hasselblad-makernote-tags*))
-	 (table (make-hash-table :size (apply #'+ (mapcar #'length sources)))))
+(defun make-tag-table (sources)
+  "Collect lists of tag definitions into hash table with the numeric tag value as key."
+  (let ((table (make-hash-table :size (apply #'+ (mapcar #'length sources)))))
     (flet ((add (e)
 	     (let* ((tag (car e))
 		    (info (cdr e))
@@ -587,10 +503,6 @@
 	       (setf (gethash tag table) info))))
       (mapc #'(lambda (tags) (mapc #'add tags)) sources)
       table)))
-
-
-(defun tiff-tag-info (tag)
-  (gethash tag *tag-info*))
 
 (declaim
  (ftype (function (binary-buffer tiff cons (unsigned-byte 32)) (values ifd list)) parse-ifd)

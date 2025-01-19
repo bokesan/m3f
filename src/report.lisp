@@ -1,5 +1,5 @@
 (defpackage :report
-  (:use :cl :tiff)
+  (:use :cl :tiff :hasselblad)
   (:import-from :alexandria :when-let :array-index)
   (:export :summary :detail :layout))
 
@@ -36,7 +36,7 @@
       (label "Lens")
       (when-let ((lens (tag-value tiff #xA434)))
         (format stream "~A" lens)
-	(when-let ((snr (decode-hasselblad-snr (tag-value tiff #xA435 #x0061))))
+	(when-let ((snr (decode-serial-number (tag-value tiff #xA435 #x0061))))
           (format stream ", serial number: ")
 	  (if (consp snr)
 	      (format stream "~A (year: ~A)"
@@ -119,10 +119,11 @@
 
 (defun detail (tiff &key (stream t) (filter :known) max-bytes words)
   "Show TIFF IFDs with entries."
-  (format stream "Number of IFDs: ~D~%" (length (tiff-ifds tiff)))
-  (map nil
-       #'(lambda (ifd) (show-ifd ifd :stream stream :filter filter :max-bytes max-bytes :words words))
-       (tiff-ifds tiff)))
+  (let ((tags (make-tag-table (list *standard-tags* hasselblad:*makernote-tags*))))
+    (format stream "Number of IFDs: ~D~%" (length (tiff-ifds tiff)))
+    (map nil
+	 #'(lambda (ifd) (show-ifd ifd tags :stream stream :filter filter :max-bytes max-bytes :words words))
+	 (tiff-ifds tiff))))
 
 (defun layout (tiff &optional (stream t))
   "Show TIFF file layout."
@@ -130,12 +131,12 @@
   (report-regions tiff stream))
 
 
-(defun show-ifd (ifd &key (stream t) filter max-bytes words)
+(defun show-ifd (ifd tags &key (stream t) filter max-bytes words)
   (declare (type ifd ifd))
   (format stream "~A (~D entries):~%" (ifd-name ifd) (length (ifd-entries ifd)))
   (loop for entry across (ifd-entries ifd) do
        (let* ((tag (ifd-entry-tag entry))
-	      (info (tiff-tag-info tag)))
+	      (info (gethash tag tags)))
 	 (when (ecase filter
 		 (:sensitive (not (sensitive-tag-p tag)))
 		 (:diff (not (volatile-tag-p tag)))
@@ -272,33 +273,6 @@
 		    (format stream " ~S" values)))
 	(t (format stream " ~S" values))))
     (format stream "~%")))
-
-
-(defun decode-hasselblad-serial-number (s)
-  (if (and (stringp s) (= (length s) 9))
-      (flet ((code-to-number (c) (position c "SVHPICTURE")))
-	(let ((product-code (subseq s 0 2))
-	      (year (+ 2000 (* 10 (code-to-number (char s 2)))
-		       (code-to-number (char s 3)))))
-	  ;; (unknown (char s 4))
-	  ;; (serial (subseq s 5))
-	  (format nil "~S (product code: ~A, year: ~A)"
-		  s product-code year)))
-      nil))
-
-(defun decode-hasselblad-snr (s)
-  "If the argument is a string that looks like a Hasselblad serial number
-(two-digit product code, two digit year code, snr), return a list
-(s year product-code). Otherwise, return the argument."
-  (if (and (stringp s) (>= (length s) 8))
-      (flet ((code-to-number (c) (position c "SVHPICTURE")))
-	(let ((product-code (subseq s 0 2))
-	      (yc1 (code-to-number (char s 2)))
-	      (yc2 (code-to-number (char s 3))))
-	  (if (and yc1 yc2)
-	      (list s (+ 2000 (* 10 yc1) yc2) product-code)
-	      s)))
-      s))
 
 
 (defun get-raw-quality (raw)

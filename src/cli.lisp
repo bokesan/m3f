@@ -14,7 +14,8 @@
 (defun top-level/handler (cmd)
   (let ((files (clingon:command-arguments cmd))
 	(map-p (clingon:getopt cmd :map))
-	(all (clingon:getopt cmd :all))
+	(detail (clingon:getopt cmd :detail))
+	(unknown (clingon:getopt cmd :unknown))
 	(diff (clingon:getopt cmd :no-volatile))
 	(privacy (clingon:getopt cmd :privacy))
 	(decode-words (clingon:getopt cmd :decode-words))
@@ -26,13 +27,13 @@
 	    (format t "======== ~A~%" f))
 	  (handler-case
 	      (let ((tiff (tiff:read-tiff f :max-bytes max-bytes)))
-		(cond ((not (or all privacy diff map-p))
+		(cond ((not (or detail unknown map-p))
 		       (report:summary tiff :privacy privacy))
-		      (t (when (or all privacy diff)
+		      (t (when (or detail unknown)
 			   (report:detail tiff
-					  :filter (cond ((and all privacy) :sensitive)
-							((and all diff) :diff)
-							(all :all)
+					  :filter (cond ((and unknown privacy) :sensitive)
+							((and unknown diff) :diff)
+							(unknown :all)
 							(privacy :known-sensitive)
 							(diff :known-diff)
 							(t :known))
@@ -47,14 +48,19 @@
   (list
    (clingon:make-option
     :flag
-    :long-name "map"
+    :short-name #\D :long-name "detail"
+    :key :detail
+    :description "show IFD entries instead of summary information")
+   (clingon:make-option
+    :flag
+    :long-name "layout"
     :key :map
     :description "show file layout map")
    (clingon:make-option
     :flag
-    :short-name #\A :long-name "all"
-    :key :all
-    :description "display unknown tags")
+    :short-name #\U :long-name "unknown"
+    :key :unknown
+    :description "display unknown tags. Implies --detail")
    (clingon:make-option
     :flag
     :short-name #\V :long-name "no-volatile"
@@ -63,9 +69,9 @@
 The image count for exposure or focus bracket sequences is not omitted.")
    (clingon:make-option
     :flag
-    :short-name #\S :long-name "privacy"
+    :long-name "privacy"
     :key :privacy
-    :description "omit tags containing sensitive information such as serial numbers. Implies --no-volatile")
+    :description "omit tags containing possibly sensitive information such as serial numbers, timestamps, or location data")
    (clingon:make-option
     :flag
     :long-name "decode-words"
@@ -76,10 +82,10 @@ The image count for exposure or focus bracket sequences is not omitted.")
     :long-name "max-bytes"
     :initial-value 32
     :key :max-bytes
-    :description "truncate byte or undefined fields to this size in output")
+    :description "truncate byte or undefined fields to this size in detail output")
    (clingon:make-option
     :counter
-    :description "show more progress messages. Use multiple times (e.g. -vvv) for more output"
+    :description "show progress messages. Use multiple times (e.g. -vvv) for more output"
     :short-name #\v
     :long-name "verbose"
     :persistent t

@@ -1,7 +1,7 @@
 #+CCL (require 'asdf)
-#+CCL (push (uiop/os:getcwd) ql:*local-project-directories*)
-#+ECL (ql:quickload '("m3f" "m3f/executable"))
+(pushnew (uiop/os:getcwd) quicklisp:*local-project-directories* :test #'equalp)
 #-ECL (asdf:make "m3f/executable")
-#+ECL (asdf:make-build :m3f/executable :type :program :move-here #P"./src"
-		       :epilogue-code '(cli:main))
+#+ECL (progn (ql:quickload '("m3f" "m3f/executable"))
+	     (asdf:make-build :m3f/executable :type :program :move-here #P"./src"
+			      :epilogue-code '(cli:main)))
 #+(OR CCL ECL) (quit)

@@ -82,14 +82,7 @@ The image count for exposure or focus bracket sequences is not omitted.")
     :long-name "max-bytes"
     :initial-value 32
     :key :max-bytes
-    :description "truncate byte or undefined fields to this size in detail output")
-   (clingon:make-option
-    :counter
-    :description "show progress messages. Use multiple times (e.g. -vvv) for more output"
-    :short-name #\v
-    :long-name "verbose"
-    :persistent t
-    :key :verbose)))
+    :description "truncate byte or undefined fields to this size in detail output")))
 
 (defun top-level/command ()
   "Creates and returns the top-level command"

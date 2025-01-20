@@ -1,3 +1,5 @@
+(pushnew (uiop/os:getcwd) quicklisp:*local-project-directories* :test #'equalp)
+(ql:quickload '("alexandria" "clingon"))
 (asdf:load-system "m3f/tests")
 (fiveam:run-all-tests)
 #-SBCL (quit)

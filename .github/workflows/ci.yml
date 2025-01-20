@@ -37,8 +37,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install SBCL
-      run: brew install sbcl
-
+      run: sudo brew install sbcl
     - name: Install Quicklisp
       run: |
         curl -O https://beta.quicklisp.org/quicklisp.lisp

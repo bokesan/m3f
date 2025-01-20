@@ -37,3 +37,27 @@ jobs:
       with:
         name: m3f-${{ runner.os }}-${{ runner.arch }}
         path: m3f
+
+  build-windows:
+    runs-on: windows-2022
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install SBCL
+      run: choco install sbcl
+
+    - name: Download Quicklisp
+      run: Invoke-WebRequest -Uri "https://beta.quicklisp.org/quicklisp.lisp" -OutFile "quicklisp.lisp"
+    - name: Install Quicklisp
+      run: sbcl --non-interactive --load quicklisp.lisp --eval "(quicklisp-quickstart:install)" --eval "(ql-util:without-prompting (ql:add-to-init-file))"
+
+    - name: Build
+      run: sbcl --dynamic-space-size 4096 --non-interactive --load compile.lisp
+    - name: Test
+      run: sbcl --non-interactive --load run-tests.lisp
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: m3f-${{ runner.os }}-${{ runner.arch }}
+        path: m3f.exe

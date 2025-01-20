@@ -33,11 +33,11 @@ jobs:
         path: m3f
 
   build-mac:
-    runs-on: [macos-13, macos-15]
+    runs-on: macos-13
     steps:
     - uses: actions/checkout@v4
     - name: Install SBCL
-      run: sudo brew install sbcl
+      run: brew install sbcl
     - name: Install Quicklisp
       run: |
         curl -O https://beta.quicklisp.org/quicklisp.lisp

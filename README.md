@@ -2,9 +2,12 @@
 
 List metadata of Hasselblad raw files.
 
-## Building
+## Install / Build
 
-You need a Common Lisp implementation to build `m3f`. It is tested and
+The installation consists of a single executable, `m3f`. Download the version for your
+OS from releases, and unzip it in a folder that's in your path.
+
+Building from source requires a Common Lisp implementation. `m3f` is tested with and
 known to work with [SBCL](https://www.sbcl.org/) and
 [CCL](https://ccl.clozure.com/),
 but should also work with other implementations.

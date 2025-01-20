@@ -7,41 +7,27 @@ on:
     branches: [ "main" ]
 
 jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, macos-13, macos-15]
 
-  build-linux:
-
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install SBCL
+    - name: Install SBCL on Linux
+      if: ${{ startsWith(matrix.os, 'ubuntu') }}
       run: sudo apt-get install sbcl
-
-    - name: Install Quicklisp
-      run: |
-        curl -O https://beta.quicklisp.org/quicklisp.lisp
-        sbcl --non-interactive --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql-util:without-prompting (ql:add-to-init-file))'
-
-    - name: Build and test
-      run: make
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: m3f-${{ runner.os }}-${{ runner.arch }}
-        path: m3f
-
-  build-mac:
-    runs-on: macos-15
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install SBCL
+    - name: Install SBCL on macOS
+      if: ${{ startsWith(matrix.os, 'mac') }}
       run: brew install sbcl
+
+    - name: Download Quicklisp
+      run: curl -O https://beta.quicklisp.org/quicklisp.lisp
     - name: Install Quicklisp
-      run: |
-        curl -O https://beta.quicklisp.org/quicklisp.lisp
-        sbcl --non-interactive --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql-util:without-prompting (ql:add-to-init-file))'
+      run: sbcl --non-interactive --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql-util:without-prompting (ql:add-to-init-file))'
 
     - name: Build and test
       run: make

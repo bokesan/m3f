@@ -42,7 +42,7 @@ GPS Coordinate: ?
 ```
 
 The lines up to and including "GPS Coordinate" should be identical to
-the information that is shown by Phocus, except that `m3f` will sometimes
+the information shown by Phocus, except that `m3f` will sometimes
 display more details, such as the lens serial number.
 
 A "?" means that I have not yet been able to decode the information.

@@ -61,3 +61,17 @@ jobs:
       with:
         name: m3f-${{ runner.os }}-${{ runner.arch }}
         path: m3f.exe
+
+  build-ccl:
+    runs-on: macos-13
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Clozure CL
+      run: brew install clozure-cl
+    - name: Download Quicklisp
+      run: curl -O https://beta.quicklisp.org/quicklisp.lisp
+    - name: Install Quicklisp
+      run: ccl64 --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql-util:without-prompting (ql:add-to-init-file))'
+    - name: Build and test
+      run: make
+

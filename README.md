@@ -1,3 +1,5 @@
+![CI](https://github.com/bokesan/m3f/actions/workflows/ci.yml/badge.svg)
+
 # m3f
 
 List metadata of Hasselblad raw files.

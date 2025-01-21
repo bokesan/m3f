@@ -73,5 +73,5 @@ jobs:
     - name: Install Quicklisp
       run: ccl64 --load quicklisp.lisp --eval '(quicklisp-quickstart:install)' --eval '(ql-util:without-prompting (ql:add-to-init-file))'
     - name: Build and test
-      run: make
+      run: make LISP=ccl64
 

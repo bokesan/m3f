@@ -80,8 +80,8 @@
 		 (1 "electronic shutter"))))
     (#x59 "CropMode"			; only in .3FR
 	  ,#'decode-crop-mode)
-    (#x5B "ReleaseMode" ,#'decode-drive-mode)
-    (#x5C "ReleaseCount")
+    (#x5B "DriveMode" ,#'decode-drive-mode)
+    (#x5C "ReleaseCount") ; within bracket sequence
     ;; 5E
     ;; 5F related to shutter type. On Mode A, 1 is leaf, 0 is electronic.
     ;;    But on FULL AUTO mode, it is always 5E == 2 and 5F == 0, regardless of shutter type

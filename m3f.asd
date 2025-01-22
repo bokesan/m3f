@@ -21,5 +21,6 @@
 (defsystem "m3f/tests"
     :depends-on ("fiveam" "m3f")
     :pathname "test"
-    :components ((:file "tiff-tests")
+    :components ((:file "arrays-tests")
+		 (:file "tiff-tests")
 		 (:file "report-tests")))

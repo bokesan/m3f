@@ -22,7 +22,7 @@ the source and destination region must not overlap."
 	    (> (+ src-offs count) (length src))
 	    (> (+ dest-offs count) (length dest)))
     ;; TODO: signal error more in line what AREF would signal
-    (error "index out of bounbds"))
+    (error "index out of bounds"))
   (dotimes (i count)
     (setf (aref dest (+ dest-offs i))
 	  (aref src (+ src-offs i)))))

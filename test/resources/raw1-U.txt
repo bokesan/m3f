@@ -1,0 +1,123 @@
+Number of IFDs: 4
+IFD0 (29 entries):
+  00FE NewSubfileType               LONG            1  Reduced-resolution image
+  0100 ImageWidth                   SHORT           1  3888
+  0101 ImageLength                  SHORT           1  1434
+  0102 BitsPerSample                SHORT           3  8 8 8
+  0103 Compression                  SHORT           1  JPEG
+  0106 PhotometricInterpretation    SHORT           1  YCbCr
+  010F Make                         ASCII          11  "Hasselblad"
+  0110 Model                        ASCII          14  "CFV 100C/907X"
+  0111 StripOffsets                 LONG            1  210530304
+  0112 Orientation                  SHORT           1  Rotate 90 CW
+  0115 SamplesPerPixel              SHORT           1  3
+  0116 RowsPerStrip                 LONG            1  1434
+  0117 StripByteCounts              LONG            1  667648
+  011A XResolution                  RATIONAL        1  72
+  011B YResolution                  RATIONAL        1  72
+  011C PlanarConfiguration          SHORT           1  Chunky
+  0128 ResolutionUnit               SHORT           1  inches
+  0131 Software                     ASCII           6  "3.2.0"
+  0132 DateTime                     ASCII          20  "2025:01:16 15:46:52"
+  014A SubIFD                       LONG            1  832
+  02BC ApplicationNotes             BYTE          238  (truncated)
+     3C 78 3A 78 6D 70 6D 65 74 61 20 78 6D 6C 6E 73  <x:xmpmeta xmlns
+     3A 78 3D 27 61 64 6F 62 65 3A 6E 73 3A 6D 65 74  :x='adobe:ns:met
+  8298 Copyright                    ASCII           1  ""
+  8769 ExifOffset                   LONG            1  1090
+  C614 UniqueCameraModel            ASCII          25  "Hasselblad CFV 100C/907X"
+  C621 ColorMatrix1                 SRATIONAL       9  0.59505737 -0.14667475 -0.034129523 -0.51592964 1.2630619 0.2826111 -0.10382582 0.16755778 0.6152086
+  C628 AsShotNeutral                RATIONAL        3  0.3799497 1 0.6166237
+  C62C BaselineSharpness            RATIONAL        1  1.5
+  C62F CameraSerialNumber           ASCII          11  "JT63001117"
+  C65D RawDataUniqueID              BYTE           16 
+     30 33 43 31 35 32 31 44 30 30 30 30 30 31 46 43  03C1521D000001FC
+SubIFD0 (17 entries):
+  00FE NewSubfileType               LONG            1  Full-resolution image
+  0100 ImageWidth                   SHORT           1  11904
+  0101 ImageLength                  SHORT           1  8842
+  0102 BitsPerSample                SHORT           1  16
+  0103 Compression                  SHORT           1  Uncompressed
+  0106 PhotometricInterpretation    SHORT           1  Color Filter Array
+  0111 StripOffsets                 LONG            1  16384
+  0115 SamplesPerPixel              SHORT           1  1
+  0116 RowsPerStrip                 LONG            1  8842
+  0117 StripByteCounts              LONG            1  210510336
+  011C PlanarConfiguration          SHORT           1  Chunky
+  C61A BlackLevel                   RATIONAL        1  4096
+  C61D WhiteLevel                   SHORT           1  65535
+  C61F DefaultCropOrigin            SHORT           2  128 96
+  C620 DefaultCropSize              SHORT           2  11656 8742
+  C632 AntiAliasStrength            RATIONAL        1  0
+  C68E MaskedAreas                  SHORT          16  12 76 50 11820 52 76 90 11820 92 76 8842 120 92 11792 8842 11820
+ExifIFD0 (19 entries):
+  4746 Rating                       SHORT           1  0
+  4749 RatingPercent                SHORT           1  0
+  829A ExposureTime                 RATIONAL        1  0.00625
+  829D FNumber                      RATIONAL        1  4
+  8822 ExposureProgram              SHORT           1  Aperture-priority AE
+  8827 ISO                          SHORT           1  400
+  9000 ExifVersion                  UNDEFINED       4 
+     30 32 33 30                                      0230
+  9003 DateTimeOriginal             ASCII          20  "2025:01:16 15:46:52"
+  9204 ExposureCompensation         SRATIONAL       1  0
+  9205 MaxApertureValue             RATIONAL        1  4
+  9207 MeteringMode                 SHORT           1  Centre W
+  9209 Flash                        SHORT           1  No Flash
+  920A FocalLength                  RATIONAL        1  28
+  927C MakerNote                    UNDEFINED   11288  (IFD)
+  A001 ColorSpace                   SHORT           1  sRGB
+  A405 FocalLengthIn35mmFormat      SHORT           1  22
+  A420 ImageUniqueID                ASCII          33  "0000000000004A5403C1521D000001FC" (serial number: JT63001117, count: 508)
+  A433 LensMake                     ASCII          11  "Hasselblad"
+  A434 LensModel                    ASCII           8  "XCD 28P"
+MakerNote0 (35 entries):
+  0005 WhiteBalance                 LONG            1  Daylight
+  0007 *unknown*                    SLONG           1  0
+  0008 *unknown*                    SLONG           1  0
+  000F *unknown*                    LONG           10  6 0 0 0 0 0 0 0 0 0
+  0011 *unknown*                    LONG            1  20
+  0012 *unknown*                    LONG            1  70
+  0013 Quality?                     LONG            2  4000E5FE (1000000000000001110010111111110)  2000 (10000000000000)
+  0014 *unknown*                    LONG            1  2
+  0015 Model                        ASCII          14  "CFV 100C/907X"
+  0016 *unknown*                    LONG            1  6
+  0017 *unknown*                    UNDEFINED      17 
+     01 42 25 01 16 95 46 52 30 0A 00 56 00 00 27 4A  .B%...FR0..V..'J
+     00                                               .
+  0018 *unknown*                    UNDEFINED      17 
+     01 43 27 27 00 00 00 03 00 00 84 00 88 00 00 00  .C''............
+     00                                               .
+  0019 *unknown*                    UNDEFINED     512  (truncated)
+     47 41 49 4E 08 6F C4 19 00 00 00 00 00 00 00 00  GAIN.o..........
+     00 00 00 00 00 00 00 00 00 02 00 00 00 00 00 00  ................
+  001E *unknown*                    LONG            1  16
+  0030 *unknown*                    SHORT           2  0 0
+  0031 *unknown*                    SHORT           2  0 0
+  0033 *unknown*                    UNDEFINED      17 
+     00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+     00                                               .
+  0036 *unknown*                    RATIONAL       12  0.25 0.00003051851 1 0.25 0.00003051851 1 0.25 0.00003051851 1 0.25 0.00003051851 1
+  0042 *unknown*                    UNDEFINED    1024  (truncated)
+     5E 88 AD C4 CE D1 D7 E2 EE F5 F6 F7 FA FC FB F8  ^...............
+     F2 ED EC EE F0 F2 F5 F7 F9 FA FB F9 F7 F3 EF E9  ................
+  0045 *unknown*                    SLONG           1  100
+  0046 Gain?                        RATIONAL        1  6.269
+  0047 FocusPoint                   SHORT           7  1 5001 5001 464 672 0 0
+  004A ShutterType                  SHORT           1  leaf shutter
+  004B *unknown*                    UNDEFINED    4928  (truncated)
+     00 00 00 00 0C 00 00 00 00 00 00 80 FF FF FF 7F  ................
+     00 00 00 00 01 00 00 00 01 00 00 00 03 00 00 00  ................
+  0059 CropMode                     SHORT           5  65:24 (XPan): 11656x4302
+  005A *unknown*                    UNDEFINED    4096  (truncated)
+     1B 6C F4 01 1B 4F B7 87 19 73 E5 E3 82 60 F3 FF  .l...O...s...`..
+     6B 8E 42 9D 53 BF 97 47 A7 67 E7 E7 9B 8E 42 9D  k.B.S..G.g....B.
+  005B DriveMode                    SLONG           1  Single Shot
+  005C ReleaseCount                 SLONG           1  0
+  005D *unknown*                    SLONG           1  0
+  005E *unknown*                    SHORT           1  0
+  005F *unknown*                    BYTE            1  1
+  0060 *unknown*                    ASCII          15  "5EGZLBA00400SR"
+  0061 LensSerialNumber             ASCII          10  "8QHI15094"
+  0063 ExactExposureTime            RATIONAL        1  0.00696
+  C628 AsShotNeutral                RATIONAL        3  0.3799497 1 0.6166237

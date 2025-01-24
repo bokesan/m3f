@@ -75,7 +75,7 @@
       (let* ((special (tag-value tiff #x005E))
 	     (mode (case exposure-mode
 		     (1 "Manual")
-		     (2 (if (and special (= special 2)) "Full Auto" "Program"))
+		     (2 (if (equalp special 2) "Full Auto" "Program"))
 		     (3 "Aperture")
 		     (4 "Shutter")
 		     (t (format nil "Unknown (~S)" exposure-mode)))))

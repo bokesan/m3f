@@ -26,11 +26,20 @@
 	  (when (cdr files)
 	    (format t "======== ~A~%" f))
 	  (handler-case
-	      (let ((tiff (tiff:read-tiff f :max-bytes max-bytes)))
+	      (let* ((type (pathname-type f))
+		     (info (cond ((or (equalp type "3fr") (equalp type "fff"))
+				  (tiff:read-tiff f :max-bytes max-bytes))
+				 ((equalp type "heic")
+				  (boxes:read-boxes f))
+				 ((or (equalp type "jpg") (equalp type "jpeg"))
+				  (read-jpeg f))
+				 (t
+				  (format t "unknown file type, trying TIFF reader.~%")
+				  (tiff:read-tiff f :max-bytes max-bytes)))))
 		(cond ((not (or detail unknown map-p))
-		       (report:summary tiff :privacy privacy))
+		       (report:summary info :privacy privacy))
 		      (t (when (or detail unknown)
-			   (report:detail tiff
+			   (report:detail info
 					  :filter (cond ((and unknown privacy) :sensitive)
 							((and unknown diff) :diff)
 							(unknown :all)
@@ -40,8 +49,8 @@
 					  :max-bytes max-bytes
 					  :words decode-words))
 			 (when map-p
-			   (report:layout tiff)))))
-	    (end-of-file () (format t "error: end of file encountered, malformed tiff?~%")))))))
+			   (report:layout info)))))
+	    (end-of-file () (format t "error: end of file encountered, malformed file?~%")))))))
 
 (defun top-level/options ()
   "Creates and returns the options for the top-level command"

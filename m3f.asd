@@ -7,6 +7,7 @@
   :pathname "src"
   :components ((:file "arrays")
 	       (:file "binary" :depends-on ("arrays"))
+	       (:file "boxes" :depends-on ("binary"))
 	       (:file "tiff" :depends-on ("binary"))
 	       (:file "hasselblad")
 	       (:file "report" :depends-on ("tiff" "hasselblad"))))

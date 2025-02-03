@@ -7,7 +7,7 @@
 	   :binary-buffer-big-endian-p
 	   :binary-buffer-length
 	   :with-binary-buffer
-	   :get-u8 :get-s8 :get-u16 :get-s16 :get-u32 :get-s32 :get-bytes))
+	   :get-u8 :get-s8 :get-u16 :get-s16 :get-u32 :get-s32 :get-u64 :get-bytes))
 
 (in-package :binary-buffer)
 
@@ -29,9 +29,10 @@
 
 #+SBCL (declaim (sb-ext:freeze-type binary-buffer))
 
-(defun create (stream &key chunk-size)
+(defun create (stream &key chunk-size big-endian-p)
   (make-binary-buffer
    :stream stream
+   :big-endian-p big-endian-p
    :chunk-size (or chunk-size 65536)
    :chunks (make-array 10 :adjustable t :fill-pointer 0)))
 
@@ -99,28 +100,33 @@
   (multiple-value-bind (ci co)
       (index bs offs)
     (let* ((chunk1 (get-chunk bs ci))
-	   (b0 (aref chunk1 co))
-	   (b1 (if (< (+ co 1) (length chunk1))
-		   (aref chunk1 (+ co 1))
-		   (aref (get-chunk bs (+ ci 1)) 0))))
-      (if (binary-buffer-big-endian-p bs)
-          (+ (* 256 b0) b1)
-	  (+ b0 (* 256 b1))))))
+	   (len (length chunk1)))
+      (when (>= co len)
+	(error (make-condition 'end-of-file :stream (binary-buffer-stream bs))))
+      (let ((b0 (aref chunk1 co))
+	    (b1 (if (< (+ co 1) (length chunk1))
+		    (aref chunk1 (+ co 1))
+		    (aref (get-chunk bs (+ ci 1)) 0))))
+	(if (binary-buffer-big-endian-p bs)
+	    (+ (* 256 b0) b1)
+	    (+ b0 (* 256 b1)))))))
 
 (defun get-u32 (bs offs)
   (declare (optimize speed))
   (multiple-value-bind (ci co)
       (index bs offs)
     (let* ((chunk1 (get-chunk bs ci))
-	   (len (length chunk1))
-	   (b0 (aref chunk1 co))
-	   (chunk2 (if (< (+ co 3) len) chunk1 (get-chunk bs (+ ci 1))))
-	   (b1 (if (< (+ co 1) len) (aref chunk1 (+ co 1)) (aref chunk2 (- (+ co 1) len))))
-	   (b2 (if (< (+ co 2) len) (aref chunk1 (+ co 2)) (aref chunk2 (- (+ co 2) len))))
-	   (b3 (if (< (+ co 3) len) (aref chunk1 (+ co 3)) (aref chunk2 (- (+ co 3) len)))))
-      (if (binary-buffer-big-endian-p bs)
-          (+ (* 256 256 256 b0) (* 256 256 b1) (* 256 b2) b3)
-	  (+ b0 (* 256 b1) (* 256 256 b2) (* 256 256 256 b3))))))
+	   (len (length chunk1)))
+      (when (>= co len)
+	(error (make-condition 'end-of-file :stream (binary-buffer-stream bs))))
+      (let ((b0 (aref chunk1 co))
+	    (chunk2 (if (< (+ co 3) len) chunk1 (get-chunk bs (+ ci 1))))
+	    (b1 (if (< (+ co 1) len) (aref chunk1 (+ co 1)) (aref chunk2 (- (+ co 1) len))))
+	    (b2 (if (< (+ co 2) len) (aref chunk1 (+ co 2)) (aref chunk2 (- (+ co 2) len))))
+	    (b3 (if (< (+ co 3) len) (aref chunk1 (+ co 3)) (aref chunk2 (- (+ co 3) len)))))
+	(if (binary-buffer-big-endian-p bs)
+	    (+ (* 256 256 256 b0) (* 256 256 b1) (* 256 b2) b3)
+	    (+ b0 (* 256 b1) (* 256 256 b2) (* 256 256 256 b3)))))))
 
 (defun get-s8 (bs offs)
   (let ((v (get-u8 bs offs)))
@@ -134,6 +140,10 @@
   (let ((v (get-u32 bs offs)))
     (if (< v 2147483648) v (- v 4294967296))))
 
+(defun get-u64 (bs offs)
+  (let ((hi (get-u32 bs offs))
+	(lo (get-u32 bs (+ offs 4))))
+    (+ lo (* hi #x100000000))))
 
 (defun get-bytes (bs offset len)
   (let ((result (make-array len :element-type '(unsigned-byte 8))))

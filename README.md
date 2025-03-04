@@ -5,7 +5,7 @@ List metadata of Hasselblad raw files.
 ## Install / Build
 
 The installation consists of a single executable, `m3f`. Download the version for your
-OS from releases, and unzip it in a folder that's in your path.
+OS from releases and unzip it in a folder in your path.
 
 Building from source requires a Common Lisp implementation. `m3f` is tested with and
 known to work with [SBCL](https://www.sbcl.org/) and
@@ -46,7 +46,7 @@ the information shown by Phocus, except that `m3f` will sometimes
 display more details, such as the lens serial number.
 
 A "?" means that I have not yet been able to decode the information.
-I need help with that; see [the wiki](https://github.com/bokesan/m3f/wiki/Help-decoding-metadata).
+I need help with that; see [the wiki](https://github.com/bokesan/m3f/wiki).
 
 Running `m3f` without arguments will display detailed usage
 information.

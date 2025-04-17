@@ -1,4 +1,5 @@
 (defpackage :binary-buffer
+  (:documentation "Binary stream with buffering, endian-ness conversion and random access.")
   (:use :cl)
   (:shadow :close)
   (:import-from :alexandria :array-length :array-index)

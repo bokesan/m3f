@@ -51,7 +51,12 @@
 	      (format stream "~A" snr))))
       (format stream "~%")
       (val "Converter" "?") ; TODO
-      (val "Extension" "?") ; TODO
+      (val "Extension"
+	   (let ((xs (tag-value tiff #x0018)))
+	     (if (and (vectorp xs) (= (length xs) 17) (= (aref xs 0) 1)
+		      (plusp (aref xs 5)) (< (aref xs 5) 128))
+		 (format nil "~D mm" (aref xs 5))
+		 "")))
       (val "HTS" "?") ; TODO
       (tags "ISO" #x8827)
       (label "Shutter")

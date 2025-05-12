@@ -2,7 +2,7 @@
     Dimensions: 8742x11656, crop mode 65:24 (XPan): 4302x11656
           Lens: XCD 28P
      Converter: ?
-     Extension: ?
+     Extension: 
            HTS: ?
            ISO: 400
        Shutter: 1/160

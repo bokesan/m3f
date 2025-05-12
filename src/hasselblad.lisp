@@ -74,7 +74,7 @@
     ;; #x18 17 bytes lens info?
     ;;   Byte 0: always 1
     ;;   Byte 2-4: lens model?
-    ;;   Byte 5: extension tube?
+    ;;   Byte 5, except high bit: extension in mm. If the high bit is set, the lens changes in Phocus!
     (#x28 "PhocusVersion")
     ;; #x002A only .fff - almost same values as C621 (Color Matrix 1), but with the leading 1 values.
     ;; #x46 related somehow to ISO. On 50C, always == ISO / 100

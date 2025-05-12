@@ -21,9 +21,13 @@
 	     (format stream "~A~%" (apply #'tag-value tiff :default "" tags)))
 	   (val (s v)
 	     (label s)
-	     (format stream "~A~%" v)))
+	     (format stream "~A~%" v))
+	   (valid-17-byte-p (v)
+	     (and (vectorp v) (= (length v) 17) (equal (aref v 0) 1))))
     (let ((orientation (tag-value tiff #x0112))
-	  (exposure-mode (tag-value tiff #x8822)))
+	  (exposure-mode (tag-value tiff #x8822))
+	  (tag0017 (tag-value tiff #x0017))
+	  (tag0018 (tag-value tiff #x0018)))
       (tags "Device" #x0110 #x0015)
       (unless privacy
 	(tags "Created" #x9003))
@@ -50,13 +54,19 @@
 		      (first snr) (second snr))
 	      (format stream "~A" snr))))
       (format stream "~%")
-      (val "Converter" "?") ; TODO
+      (val "Converter"
+	   (if (valid-17-byte-p tag0018)
+	       (case (aref tag0018 4)
+		 (0 "")
+		 (248 "0.8")
+		 (t "?"))
+	       "n/a"))
       (val "Extension"
-	   (let ((xs (tag-value tiff #x0018)))
-	     (if (and (vectorp xs) (= (length xs) 17) (= (aref xs 0) 1)
-		      (plusp (aref xs 5)) (< (aref xs 5) 128))
-		 (format nil "~D mm" (aref xs 5))
-		 "")))
+	   (if (valid-17-byte-p tag0018)
+	       (if (< 0 (aref tag0018 5) 128)
+		   (format nil "~D mm" (aref tag0018 5))
+		   "")
+	       "n/a"))
       (val "HTS" "?") ; TODO
       (tags "ISO" #x8827)
       (label "Shutter")
@@ -93,14 +103,13 @@
 		     (t (format nil "Unknown (~S)" exposure-mode)))))
 	(val "Exposure Mode" mode))
       (val "Focus Mode"
-	   (let ((xs (tag-value tiff #x0017)))
-	     (if (and (vectorp xs) (= (length xs) 17) (= (aref xs 0) 1))
-		 (case (aref xs 1)
+	     (if (valid-17-byte-p tag0017)
+		 (case (aref tag0017 1)
 		   (2 "Manual")
 		   (#x42 "Single")
 		   (#xC2 "True Focus")
 		   (t "?"))
-		 "?"))) ; TODO
+		 "n/a"))
       (unless privacy
 	(val "Serial Number" (get-serial-number tiff))
 	(val "GPS Coordinate" "?")) ; TODO

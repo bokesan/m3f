@@ -1,7 +1,7 @@
         Device: CFV 100C/907X
     Dimensions: 8742x11656, crop mode 65:24 (XPan): 4302x11656
           Lens: XCD 28P
-     Converter: ?
+     Converter: 
      Extension: 
            HTS: ?
            ISO: 400

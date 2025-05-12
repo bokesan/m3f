@@ -15,7 +15,7 @@
        Created: 2025:01:16 15:46:52
     Dimensions: 8742x11656, crop mode 65:24 (XPan): 4302x11656
           Lens: XCD 28P, serial number: 8QHI15094 (year: 2024)
-     Converter: ?
+     Converter: 
      Extension: 
            HTS: ?
            ISO: 400

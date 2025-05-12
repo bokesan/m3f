@@ -73,7 +73,9 @@
     ;;   Byte 7: focus position? Increases with longer distance
     ;; #x18 17 bytes lens info?
     ;;   Byte 0: always 1
-    ;;   Byte 2-4: lens model?
+    ;;   Bytes 2 and 3: min. and max. focal length in strange encoding, e.g.:
+    ;;     29: 21mm, 41: 30mm, 68: 65mm, 75: 80mm, 89: 120mm
+    ;;   Byte 4: 0xF8 for HC 0.8 adapter
     ;;   Byte 5, except high bit: extension in mm. If the high bit is set, the lens changes in Phocus!
     (#x28 "PhocusVersion")
     ;; #x002A only .fff - almost same values as C621 (Color Matrix 1), but with the leading 1 values.

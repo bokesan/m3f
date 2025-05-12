@@ -67,6 +67,14 @@
   `((#x05 "WhiteBalance" ,#'decode-white-balance)
     (#x13 "Quality?" ,#'hex+binary)
     (#x15 "Model")
+    ;; #x17 17 bytes camera info?
+    ;;   Byte 0: always 1
+    ;;   Byte 1: bit #x40: AF, #x80: True Focus
+    ;;   Byte 7: focus position? Increases with longer distance
+    ;; #x18 17 bytes lens info?
+    ;;   Byte 0: always 1
+    ;;   Byte 2-4: lens model?
+    ;;   Byte 5: extension tube?
     (#x28 "PhocusVersion")
     ;; #x002A only .fff - almost same values as C621 (Color Matrix 1), but with the leading 1 values.
     ;; #x46 related somehow to ISO. On 50C, always == ISO / 100

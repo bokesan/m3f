@@ -1,10 +1,17 @@
 (defpackage :report
   (:use :cl :tiff :hasselblad)
   (:import-from :alexandria :when-let :array-index)
-  (:export :summary :detail :layout))
+  (:export :summary :detail :layout :experimental))
 
 (in-package :report)
 
+(defun experimental (tiff tag)
+  "Internal custom format."
+  (let ((cam (tag-value tiff #x0110 #x0015))
+	(lens (tag-value tiff #xA434))
+	(val (tag-value tiff tag)))
+    (when val
+      (format t "#x~,4x: ~S ~S ~S~%" tag val lens cam))))
 
 (defun summary (tiff &key (stream t) privacy)
   "Show metadata summary as in Phocus \"Capture Info\" tab."
@@ -82,9 +89,12 @@
 	(val "Exposure Mode" mode))
       (val "Focus Mode"
 	   (let ((xs (tag-value tiff #x0017)))
-	     (if (and (vectorp xs) (= (length xs) 17) (= (aref xs 0) 1)
-		      (or (= (aref xs 1) 2) (= (aref xs 1) #x42)))
-		 (if (= (aref xs 1) 2) "Manual" "Single")
+	     (if (and (vectorp xs) (= (length xs) 17) (= (aref xs 0) 1))
+		 (case (aref xs 1)
+		   (2 "Manual")
+		   (#x42 "Single")
+		   (#xC2 "True Focus")
+		   (t "?"))
 		 "?"))) ; TODO
       (unless privacy
 	(val "Serial Number" (get-serial-number tiff))

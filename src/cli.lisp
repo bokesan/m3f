@@ -20,6 +20,7 @@
 	(privacy (clingon:getopt cmd :privacy))
 	(decode-words (clingon:getopt cmd :decode-words))
 	(x-mode (clingon:getopt cmd :x-mode))
+	(verbose (clingon:getopt cmd :verbose))
 	(max-bytes (clingon:getopt cmd :max-bytes)))
     (if (null files)
 	(clingon:print-usage cmd t)
@@ -28,7 +29,10 @@
 	    (format t "======== ~A~%" f))
 	  (handler-case
 	      (let ((tiff (tiff:read-tiff f :max-bytes max-bytes)))
-		(cond (x-mode (report:experimental tiff x-mode))
+		(cond (x-mode
+		       (when verbose
+			 (format t "~A:~%" f))
+		       (report:experimental tiff x-mode))
 		      ((not (or detail unknown map-p))
 		       (report:summary tiff :privacy privacy))
 		      (t (when (or detail unknown)
@@ -48,6 +52,11 @@
 (defun top-level/options ()
   "Creates and returns the options for the top-level command"
   (list
+   (clingon:make-option
+    :flag
+    :short-name #\v :long-name "verbose"
+    :key :verbose
+    :description "more verbose output")
    (clingon:make-option
     :integer
     :short-name #\X

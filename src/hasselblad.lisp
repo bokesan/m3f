@@ -8,6 +8,45 @@
 
 (in-package :hasselblad)
 
+(defparameter *focal-length-table*
+  #(27 20
+    28 20
+    29 21
+    32 23
+    34 24
+    35 25
+    36 26
+    38 27
+    39 28
+    40 29
+    41 30
+    42 31
+    44 32
+    45 33
+    47 35
+    49 38
+    55 45
+    68 65
+    75 80
+    79 90
+    89 120
+    93 135))
+
+(defun decode-focal-length (v)
+  (let* ((tbl *focal-length-table*)
+	 (n (length tbl)))
+    (cond ((< v (aref tbl 0)) nil)
+	  ((= v (aref tbl 0)) (aref tbl 1))
+	  (t
+	   (do ((i 2 (+ i 2)))
+	       ((>= i n) nil)
+	     ;; > v (aref tbl (- i 2))
+	     (when (<= v (aref tbl i))
+	       (when (= v (aref tbl i))
+		 (return (aref tbl (+ i 1))))
+	       (let ((f (/ (- v (aref tbl (- i 2))) (- (aref tbl i) (aref tbl (- i 2))))))
+		 (return (+ (aref tbl (- i 1)) (* f (- (aref tbl (+ i 1)) (aref tbl (- i 1)))))))))))))
+
 (defun decode-white-balance (v)
   (case v
     (1 "Auto")
@@ -71,6 +110,7 @@
     ;;   Byte 0: always 1
     ;;   Byte 1: bit #x40: AF, #x80: True Focus
     ;;   Byte 7: focus position? Increases with longer distance
+    ;;   Byte 14: focal length, same encoding as #x0018 2-3
     ;; #x18 17 bytes lens info?
     ;;   Byte 0: always 1
     ;;   Bytes 2 and 3: min. and max. focal length in strange encoding, e.g.:

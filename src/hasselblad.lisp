@@ -108,15 +108,23 @@
     (#x15 "Model")
     ;; #x17 17 bytes camera info?
     ;;   Byte 0: always 1
-    ;;   Byte 1: bit #x40: AF, #x80: True Focus
-    ;;   Byte 7: focus position? Increases with longer distance
-    ;;   Byte 14: focal length, same encoding as #x0018 2-3
+    ;;   Byte 1: bit #x40: AF, #x80: True Focus. Bit #x02 always on.
+    ;;   Byte 2-4: date in hex, e.g. #x25, #x03, #x07 == 2025-03-07
+    ;;   Byte 5: hour. Only lower 7 bits: #x89: 09:00, #x90 == 10:00, #x92: 12:00, #x99 == 19:00
+    ;;   Bytes 6-7: timestamp in hex
+    ;;   Byte 11 and 15: increase per exposure often by 1 but sometimes more, in lockstep,
+    ;;     with byte 15 == Byte 11 + 20 (0x14)
+    ;;   Byte 14: focal length in the strange encoding as #x0018, 2 and 3
+    ;;      With dumb adapters: 0
+    ;;   Bytes 15, 16: with dumb adapter, always 255, 1
+    ;;      with native lens, byte 16 is always 0 or 255
     ;; #x18 17 bytes lens info?
     ;;   Byte 0: always 1
-    ;;   Bytes 2 and 3: min. and max. focal length in strange encoding, e.g.:
-    ;;     29: 21mm, 41: 30mm, 68: 65mm, 75: 80mm, 89: 120mm
+    ;;   Bytes 2 and 3: min. and max. focal length in strange encoding.
     ;;   Byte 4: 0xF8 for HC 0.8 adapter
     ;;   Byte 5, except high bit: extension in mm. If the high bit is set, the lens changes in Phocus!
+    ;;   Byte 6: decreases with increasing focus distance
+    ;;       XCD45P, XCD80: 14 at close focus - 0 for infinity
     (#x28 "PhocusVersion")
     ;; #x002A only .fff - almost same values as C621 (Color Matrix 1), but with the leading 1 values.
     ;; #x46 related somehow to ISO. On 50C, always == ISO / 100

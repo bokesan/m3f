@@ -277,7 +277,7 @@
   (declare (type ifd-entry e)
 	   (type list info))
   (let* ((type-name (tiff-type-name (ifd-entry-type e)))
-	 (tag-name (if info (car info) "*unknown*"))
+	 (tag-name (or (car info) "*unknown*"))
 	 (values (ifd-entry-values e))
 	 (displayed-p nil))
     (format stream "  ~4,'0X ~28A ~9A ~7D "

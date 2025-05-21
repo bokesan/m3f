@@ -33,19 +33,22 @@
     93 135))
 
 (defun decode-focal-length (v)
+  "Returns the focal length, or NIL for unknown codes.
+The second value is T if the focal length is exact or NIL if it was approximated."
   (let* ((tbl *focal-length-table*)
 	 (n (length tbl)))
-    (cond ((< v (aref tbl 0)) nil)
-	  ((= v (aref tbl 0)) (aref tbl 1))
+    (cond ((< v (aref tbl 0)) (values nil nil))
+	  ((= v (aref tbl 0)) (values (aref tbl 1) t))
 	  (t
 	   (do ((i 2 (+ i 2)))
-	       ((>= i n) nil)
+	       ((>= i n) (values nil nil))
 	     ;; > v (aref tbl (- i 2))
 	     (when (<= v (aref tbl i))
 	       (when (= v (aref tbl i))
-		 (return (aref tbl (+ i 1))))
+		 (return (values (aref tbl (+ i 1)) t)))
 	       (let ((f (/ (- v (aref tbl (- i 2))) (- (aref tbl i) (aref tbl (- i 2))))))
-		 (return (+ (aref tbl (- i 1)) (* f (- (aref tbl (+ i 1)) (aref tbl (- i 1)))))))))))))
+		 (return (values (+ (aref tbl (- i 1)) (* f (- (aref tbl (+ i 1)) (aref tbl (- i 1)))))
+				 nil)))))))))
 
 (defun decode-white-balance (v)
   (case v
@@ -102,10 +105,35 @@
 		(prin1 v s)))
        (get-output-stream-string s)))))
 
+(defun decode-0017 (v)
+  (if (and (vectorp v) (= (length v) 17))
+      (format nil "
+     ~2,'0x, AF: ~A, ~
+TS: 20~2,'0x-~2,'0x-~2,'0x ~2,'0x:~2,'0x:~2,'0x~A, ~
+~2,'0x ~2,'0x ~2,'0x ~2,'0x ~2,'0x ~2,'0x, ~
+FL: ~A, ~2,'0x ~2,'0x"
+	      (aref v 0)
+	      (case (aref v 1)
+		(2 "Manual")
+		(#x42 "AF")
+		(#xC2 "True Focus")
+		(t (format nil "~2,'0x" (aref v 1))))
+	      (aref v 2) (aref v 3) (aref v 4) (logand (aref v 5) #x7F) (aref v 6) (aref v 7)
+	      (if (logbitp 7 (aref v 5)) " (HI)" "")
+	      (aref v 8) (aref v 9) (aref v 10) (aref v 11) (aref v 12) (aref v 13)
+	      (multiple-value-bind (fl exact-p)
+		  (decode-focal-length (aref v 14))
+		(cond ((not fl) "unknown")
+		      (exact-p (format nil "~A mm" fl))
+		      (t (format nil "~~~A mm" fl))))
+	      (aref v 15) (aref v 16))
+      nil))
+
 (defparameter *makernote-tags*
   `((#x05 "WhiteBalance" ,#'decode-white-balance)
     (#x13 "Quality?" ,#'hex+binary)
     (#x15 "Model")
+    (#x0017 nil ,#'decode-0017)
     ;; #x17 17 bytes camera info?
     ;;   Byte 0: always 1
     ;;   Byte 1: bit #x40: AF, #x80: True Focus. Bit #x02 always on.

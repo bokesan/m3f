@@ -41,6 +41,9 @@ jobs:
   build-windows:
     runs-on: windows-2022
     steps:
+    - name: Prepare git to leave line endings alone
+      run: git config --global core.autocrlf input
+
     - uses: actions/checkout@v4
 
     - name: Install SBCL

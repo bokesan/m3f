@@ -1,10 +1,17 @@
 (defpackage :report
   (:use :cl :tiff :hasselblad)
   (:import-from :alexandria :when-let :array-index)
-  (:export :summary :detail :layout))
+  (:export :summary :detail :layout :experimental))
 
 (in-package :report)
 
+(defun experimental (tiff tag)
+  "Internal custom format."
+  (let ((cam (tag-value tiff #x0110 #x0015))
+	(lens (tag-value tiff #xA434))
+	(val (tag-value tiff tag)))
+    (when val
+      (format t "#x~,4x: ~S ~S ~S~%" tag val lens cam))))
 
 (defun summary (tiff &key (stream t) privacy)
   "Show metadata summary as in Phocus \"Capture Info\" tab."
@@ -14,9 +21,13 @@
 	     (format stream "~A~%" (apply #'tag-value tiff :default "" tags)))
 	   (val (s v)
 	     (label s)
-	     (format stream "~A~%" v)))
+	     (format stream "~A~%" v))
+	   (valid-17-byte-p (v)
+	     (and (vectorp v) (= (length v) 17) (equal (aref v 0) 1))))
     (let ((orientation (tag-value tiff #x0112))
-	  (exposure-mode (tag-value tiff #x8822)))
+	  (exposure-mode (tag-value tiff #x8822))
+	  (tag0017 (tag-value tiff #x0017))
+	  (tag0018 (tag-value tiff #x0018)))
       (tags "Device" #x0110 #x0015)
       (unless privacy
 	(tags "Created" #x9003))
@@ -43,8 +54,19 @@
 		      (first snr) (second snr))
 	      (format stream "~A" snr))))
       (format stream "~%")
-      (val "Converter" "?") ; TODO
-      (val "Extension" "?") ; TODO
+      (val "Converter"
+	   (if (valid-17-byte-p tag0018)
+	       (case (aref tag0018 4)
+		 (0 "")
+		 (248 "0.8")
+		 (t "?"))
+	       "n/a"))
+      (val "Extension"
+	   (if (valid-17-byte-p tag0018)
+	       (if (< 0 (aref tag0018 5) 128)
+		   (format nil "~D mm" (aref tag0018 5))
+		   "")
+	       "n/a"))
       (val "HTS" "?") ; TODO
       (tags "ISO" #x8827)
       (label "Shutter")
@@ -81,11 +103,13 @@
 		     (t (format nil "Unknown (~S)" exposure-mode)))))
 	(val "Exposure Mode" mode))
       (val "Focus Mode"
-	   (let ((xs (tag-value tiff #x0017)))
-	     (if (and (vectorp xs) (= (length xs) 17) (= (aref xs 0) 1)
-		      (or (= (aref xs 1) 2) (= (aref xs 1) #x42)))
-		 (if (= (aref xs 1) 2) "Manual" "Single")
-		 "?"))) ; TODO
+	     (if (valid-17-byte-p tag0017)
+		 (case (aref tag0017 1)
+		   (2 "Manual")
+		   (#x42 "Single")
+		   (#xC2 "True Focus")
+		   (t "?"))
+		 "n/a"))
       (unless privacy
 	(val "Serial Number" (get-serial-number tiff))
 	(val "GPS Coordinate" "?")) ; TODO
@@ -253,7 +277,7 @@
   (declare (type ifd-entry e)
 	   (type list info))
   (let* ((type-name (tiff-type-name (ifd-entry-type e)))
-	 (tag-name (if info (car info) "*unknown*"))
+	 (tag-name (or (car info) "*unknown*"))
 	 (values (ifd-entry-values e))
 	 (displayed-p nil))
     (format stream "  ~4,'0X ~28A ~9A ~7D "

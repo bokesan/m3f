@@ -6,7 +6,7 @@
 
 ;; Don't add anything before these defparameter forms, because they are referenced
 ;; by form number in the ASDF file. And don't change their order.
-(defparameter *version* "0.1.0")
+(defparameter *version* "0.2.0")
 (defparameter *author* "Christoph Breitkopf <chbreitkopf@gmail.com>")
 (defparameter *description* "Extract metadata from Hasselblad raw images.")
 

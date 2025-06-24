@@ -70,9 +70,8 @@ MakerNote0 (35 entries):
   0014 *unknown*                    LONG            1  2
   0015 Model                        ASCII          14  "CFV 100C/907X"
   0016 *unknown*                    LONG            1  6
-  0017 *unknown*                    UNDEFINED      17 
-     01 42 25 01 16 95 46 52 30 0A 00 56 00 00 27 4A  .B%...FR0..V..'J
-     00                                               .
+  0017 *unknown*                    UNDEFINED      17  
+     01, AF: AF, TS: 2025-01-16 15:46:52 (HI), 30 0A 00 56 00 00, FL: 28 mm, 4A 00
   0018 *unknown*                    UNDEFINED      17 
      01 43 27 27 00 00 00 03 00 00 84 00 88 00 00 00  .C''............
      00                                               .

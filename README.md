@@ -24,8 +24,8 @@ $ m3f test/resources/raw1.3FR
        Created: 2025:01:16 15:46:52
     Dimensions: 8742x11656, crop mode 65:24 (XPan): 4302x11656
           Lens: XCD 28P, serial number: 8QHI15094 (year: 2024)
-     Converter: ?
-     Extension: ?
+     Converter:
+     Extension: 9 mm
            HTS: ?
            ISO: 400
        Shutter: 1/160

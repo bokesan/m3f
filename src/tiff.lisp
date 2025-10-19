@@ -36,14 +36,10 @@
   (or (volatile-tag-p tag)
       (case tag
 	((#x0061 #xA431 #xA435 #xC62F ; serial numbers
-	  #x8298 ; copyright
-	  #x02BC ; application notes
-	  ) t))))
-		 
+	  #x8298  ; copyright
+	  #x02BC) ; application notes
+	 t))))
 
-(declaim (inline make-ifd-entry ifd-entry-tag ifd-entry-type ifd-entry-count
-		 ifd-entry-value-address ifd-entry-values
-		 make-ifd ifd-name ifd-address ifd-entries))
 
 (defstruct ifd-entry
   (tag 0 :type (unsigned-byte 16) :read-only t)
@@ -57,13 +53,11 @@
   (address 0 :type (unsigned-byte 32) :read-only t)
   (entries nil :type (simple-array ifd-entry 1) :read-only t))
 
-(declaim (inline make-region region-start region-end))
 (defstruct region
   (start 0 :type array-index :read-only t)
   (end 0 :type array-index :read-only t)
   (description "" :type string :read-only t))
 
-(declaim (inline make-tiff tiff-ifds tiff-regions))
 (defstruct tiff
   ifds
   regions)

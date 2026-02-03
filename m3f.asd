@@ -8,6 +8,8 @@
   :components ((:file "arrays")
 	       (:file "binary" :depends-on ("arrays"))
 	       (:file "tiff" :depends-on ("binary"))
+	       (:file "tiff-tags" :depends-on ("tiff"))
+	       (:file "tiff-writer" :depends-on ("tiff"))
 	       (:file "hasselblad")
 	       (:file "report" :depends-on ("tiff" "hasselblad"))))
 

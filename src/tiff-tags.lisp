@@ -26,7 +26,7 @@
 
 (declaim (ftype (function ((signed-byte 33) (signed-byte 33)) real) apex-value))
 (defun apex-value (n d)
-  "Return the APEX value of a rational (signed or unsigned)."
+  "Return the APEX value of the rational N/D (signed or unsigned)."
   (expt 2 (/ (/ n d) 2)))
 
 (declaim (ftype (function ((unsigned-byte 16)) boolean) apex-tag-p))

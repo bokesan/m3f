@@ -37,6 +37,7 @@
   (description "" :type string :read-only t))
 
 (defstruct tiff
+  (big-endian-p nil :read-only t)
   ifds
   regions)
 
@@ -225,7 +226,7 @@
 		(= b1 (char-code #\M)))
 	   (setf (binary-buffer-big-endian-p bytes) t))
 	  (t (error "invalid byte order marker: ~2,'0x ~2,'0x" b0 b1)))
-    (let* ((info (make-tiff))
+    (let* ((info (make-tiff :big-endian-p (binary-buffer-big-endian-p bytes)))
 	   (magic (get-u16 bytes 2))
 	   (ifds nil))
       (declare (type list ifds))

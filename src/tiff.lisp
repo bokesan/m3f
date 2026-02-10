@@ -2,6 +2,7 @@
   (:use :cl :binary-buffer)
   (:import-from :alexandria :array-index :array-length :if-let :when-let)
   (:export :tiff :tiff-ifds :tiff-regions :read-tiff :tag-value
+           :*read-images*
            :ifd :ifd-name :ifd-address :ifd-entries
            :ifd-entry :ifd-entry-tag :ifd-entry-type :ifd-entry-count :ifd-entry-values
 	   :make-tag-table :*standard-tags*
@@ -14,6 +15,10 @@
 
 (in-package :tiff)
 
+
+(defparameter *read-images* nil
+  "Read image data when parsing TIFF?")
+
 (declaim (inline read-hex))
 (defun read-hex (s start end)
   (parse-integer s :start start :end end :radix 16))
@@ -23,13 +28,15 @@
   (tag 0 :type (unsigned-byte 16) :read-only t)
   (type 0 :type (unsigned-byte 16) :read-only t)
   (count 0 :type (unsigned-byte 32) :read-only t)
-  (value-address 0 :type (unsigned-byte 32) :read-only t)
-  values)
+  ;; If count = 1, values is the single value. Otherwise, it's a vector the values.
+  ;; The exception is type ASCII, which may have a single string even with count > 1.
+  (values nil :type (or atom simple-vector)))
 
 (defstruct ifd
   (name "" :type string :read-only t)
   (address 0 :type (unsigned-byte 32) :read-only t)
-  (entries nil :type (simple-array ifd-entry 1) :read-only t))
+  (entries nil :type (simple-array ifd-entry (*)) :read-only t)
+  (image nil :type (or null (simple-array (unsigned-byte 8) (*)))))
 
 (defstruct region
   (start 0 :type array-index :read-only t)
@@ -248,6 +255,23 @@
       (setf (tiff-regions info) (sort (coerce (tiff-regions info) 'vector) #'region-precedes-p))
       info)))
 
+
+(defun read-image (buf strip-offsets strip-byte-counts)
+  (typecase strip-offsets
+    (unsigned-byte
+     (get-bytes buf strip-offsets strip-byte-counts))
+    (vector
+     (let* ((len (reduce #'+ strip-byte-counts))
+	    (img (make-array len :element-type '(unsigned-byte 8))))
+       (loop for strip across strip-offsets
+	     and count across strip-byte-counts
+	     and offs = 0 then (+ offs count)
+	     do
+	     (setf (subseq img offs count) (get-bytes buf strip count)))
+       img))
+    (t nil)))
+    
+
 (defun parse-ifd (buf raw name offs)
   "Parse IFD, returning a list of other IFDs to parse as second value."
   (let* ((num-entries (get-u16 buf offs))
@@ -322,9 +346,6 @@
 		       (format nil "~a~a entry ~d: ~d ~A values" (car name) (cdr name) i count (tiff-type-name type))))
 	(setf (aref entries i)
 	      (make-ifd-entry :tag tag :type type :count count
-			      :value-address (if (ifd-value-inline-p type count)
-						 voffs
-						 (get-u32 buf voffs))
 			      :values (handler-case (get-values buf tag type count voffs)
 					(end-of-file ()
 					  (format t "warning: EOF while reading values of ~a~a entry ~a~%"
@@ -338,7 +359,8 @@
     (let ((next (get-u32 buf (+ offs 2 (* num-entries 12)))))
       (values (make-ifd :name (format nil "~A~A" (car name) (cdr name))
 			:address offs
-			:entries entries)
+			:entries entries
+			:image (if *read-images* (read-image buf strip-offsets strip-byte-counts) nil))
 	      (if (zerop next)
 		  ifds
 		  (cons (cons (next-ifd-name name) next) ifds))))))

@@ -155,6 +155,31 @@
   (format stream "File layout:~%")
   (report-regions tiff stream))
 
+(declaim (ftype (function ((unsigned-byte 32)) (integer 0 32)) ntz))
+(defun ntz (x)
+  (declare (type (unsigned-byte 32) x))
+  (declare (optimize speed))
+  (logcount (logand (lognot x) (- x 1) #xffffffff)))
+
+(defun clp2 (x)
+  "Return the smallest power-of-two that is greater than or equal to X."
+  (declare (type unsigned-byte x))
+  (if (zerop x)
+      0
+      (do ((y 1 (* y 2)))
+	  ((>= y x) y))))
+
+(defun padding-p (from to)
+  "Might a range from FROM to TO be padding?
+If TO could be aligned to a power-of-two, returns the lowest (at least 1) and highest N
+such that 2^N is the alignment.
+If not, returns NIL."
+  (declare (type (unsigned-byte 32) from to))
+  (let ((pwr (ntz to))
+	(size (- to from)))
+    (if (and (> pwr 0) (< 0 size (ash 1 pwr)))
+	(values (max 1 (ntz (clp2 size))) pwr)
+	nil)))
 
 (defun show-ifd (ifd tags &key (stream t) filter max-bytes words)
   (declare (type ifd ifd))
@@ -178,7 +203,14 @@
       (let ((start (region-start region))
 	    (end (region-end region)))
 	(cond ((> start last)
-	       (format s "  ~8,'0X - ~8,'0X ~9D  ???~%  " last start (- start last)))
+	       (format s "  ~8,'0X - ~8,'0X ~9D  ~A~%  " last start (- start last)
+		       (multiple-value-bind (least most)
+			   (padding-p last start)
+			 (cond ((not least) "???")
+			       ((= least most)
+				(format nil "padding to boundary? (2^~D)" least))
+			       (t
+				(format nil "padding to boundary? (2^~D - 2^~D)" least most))))))
 	      ((< start last)
 	       (format s "O "))
 	      (t (format s "  ")))

@@ -344,7 +344,7 @@
 		  (cons (cons (next-ifd-name name) next) ifds))))))
 
 (defun get-ascii (buf offs num-bytes)
-  "Get strings from ASCII field. Returns a list of string (usually the list
+  "Get strings from ASCII field. Returns a list of strings (usually the list
 contains only one element)."
   (let ((strings nil)
 	(bytes (get-bytes buf offs num-bytes))

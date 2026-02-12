@@ -105,6 +105,12 @@
 	   (write-u8 writer b2)
 	   (write-u8 writer b3)))))
 
+(defun write-s16 (writer n)
+  (write-u16 writer (if (minusp n) (+ #x10000 n) n)))
+
+(defun write-s32 (writer n)
+  (write-u32 writer (if (minusp n) (+ #x100000000 n) n)))
+
 (defun writer-align-2 (writer)
   (when (oddp (writer-current-pos writer))
     (write-u8 writer 0)))
@@ -149,7 +155,7 @@
 	  (setf ref (write-forward-ref writer))))))
 
 (defun save-tiff (filename tiff)
-  (with-open-file (out filename :direction :output :if-exists :error)
+  (with-open-file (out filename :direction :output :if-exists :error :element-type '(unsigned-byte 8))
     (let ((writer (make-writer out :big-endian (tiff-big-endian-p tiff))))
       (write-tiff writer tiff)
       (writer-flush writer))))
@@ -160,7 +166,7 @@
   (writer-align-2 writer)
   (write-u16 writer (length (ifd-entries ifd)))
   (let ((value-refs (map 'vector #'(lambda (e) (write-ifd-entry writer e)) (ifd-entries ifd))))
-    (map nil #'(lambda (e ref) (write-ifd-entry-value writer e ref))
+    (map nil #'(lambda (e ref) (write-ifd-entry-values writer e ref))
 	 (ifd-entries ifd)
 	 value-refs)))
 
@@ -177,37 +183,90 @@ Otherwise, returns nil."
       (write-forward-ref writer)))
 
 (defun write-inline-value (writer entry)
-  (ecase (ifd-entry-type entry)
-    ((#.+BYTE+ #.+UNDEFINED+)
-     (write-bytes writer (ifd-entry-value entry))
-     (dotimes (i (- 4 (ifd-entry-count entry)))
-       (write-u8 writer 0)))
-    ))
-       
+  (let ((count (ifd-entry-count entry))
+	(val (ifd-entry-values entry)))
+    (ecase (ifd-entry-type entry)
+      ((#.+BYTE+ #.+UNDEFINED+)
+       (write-bytes writer val)
+       (dotimes (i (- 4 count))
+	 (write-u8 writer 0)))
+      (#.+ASCII+
+       (cond ((stringp val)
+	      (loop for c across val do
+		    (write-u8 writer (char-code c)))
+	      (dotimes (i (- 4 (length val)))
+		(write-u8 writer 0)))
+	     (t
+	      (let ((num-written 0))
+	      (loop for str across val do
+		    (loop for c across str do
+			  (write-u8 writer (char-code c)))
+		    (write-u8 writer 0)
+		    (incf num-written (+ (length str) 1)))
+	      (dotimes (i (- 4 num-written))
+		(write-u8 writer 0))))))
+      (#.+SHORT+
+       (ecase count
+	 (1 (write-u16 writer val)
+	    (write-u16 writer 0))
+	 (2 (write-u16 writer (aref val 0))
+	    (write-u16 writer (aref val 1)))))
+      (#.+SSHORT+
+       (ecase count
+	 (1 (write-s16 writer val)
+	    (write-s16 writer 0))
+	 (2 (write-s16 writer (aref val 0))
+	    (write-s16 writer (aref val 1)))))
+      (#.+LONG+ (write-u32 writer val))
+      (#.+SLONG+ (write-s32 writer val))
+      ;; TODO: +FLOAT+
+      )))
 
-(defun write-ifd-entry-value (writer entry ref)
+(defun write-bytes (writer bs)
+  (if (vectorp bs)
+      (loop for b across bs do (write-u8 writer b))
+      (write-u8 writer bs)))
+  
+(defun write-ifd-entry-values (writer entry ref)
   (when ref
     (writer-align-2 writer)
     (resolve-forward-ref writer ref)
-    (let ((values (ifd-entry-value entry)))
+    (let ((values (ifd-entry-values entry)))
       (ecase (ifd-entry-type entry)
 	((#.+BYTE+ #.+UNDEFINED+)
 	 (write-bytes writer values))
 	(#.+SBYTE+
 	 (write-sbytes writer values))
 	(#.+ASCII+
-	 (write-ascii write values))
+	 (cond ((stringp values)
+		(loop for c across values do
+		      (write-u8 writer (char-code c)))
+		(write-u8 writer 0))
+	       (t
+		(loop for str across values do
+		      (loop for c across str do
+			    (write-u8 writer (char-code c)))
+		      (write-u8 writer 0)))))
 	(#.+SHORT+
 	 (map nil #'(lambda (w) (write-u16 writer w)) values))
 	(#.+LONG+
 	 (map nil #'(lambda (w) (write-u32 writer w)) values))
 	(#.+RATIONAL+
-	 (map nil #'(lambda (r) (write-rational writer r)) values))
+	 (if (vectorp values)
+	     (map nil #'(lambda (r) (write-rational writer r)) values)
+	     (write-rational writer values)))
 	(#.+SSHORT+
 	 (map nil #'(lambda (w) (write-s16 writer w)) values))
 	(#.+SLONG+
 	 (map nil #'(lambda (w) (write-s32 writer w)) values))
 	(#.+SRATIONAL+
-	 (map nil #'(lambda (r) (write-srational writer r)) values))
+	 (if (vectorp values)
+	     (map nil #'(lambda (r) (write-srational writer r)) values)
+	     (write-srational writer values)))
 	;; TODO: +FLOAT+ +DOUBLE+
 	))))
+
+(defun test-copy ()
+  (let* ((*read-images* t)
+	 (tiff (read-tiff "/home/chris/prj/lenchecksw/B0002387.3FR")))
+    (save-tiff "/home/chris/prj/m3f/B0002387-copy.3FR" tiff)))

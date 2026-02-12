@@ -163,11 +163,10 @@
 
 (defun clp2 (x)
   "Return the smallest power-of-two that is greater than or equal to X."
-  (declare (type unsigned-byte x))
+  (declare (type (unsigned-byte 32) x))
   (if (zerop x)
       0
-      (do ((y 1 (* y 2)))
-	  ((>= y x) y))))
+      (ash 1 (integer-length (1- x)))))
 
 (defun padding-p (from to)
   "Might a range from FROM to TO be padding?

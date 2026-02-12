@@ -11,7 +11,7 @@
 	    (s (make-string-output-stream)))
 	(report:summary tiff :stream s)
 	(is (string=
-	     "        Device: CFV 100C/907X
+	     "        Device: CFV 100C/907X, firmware 3.2.0
        Created: 2025:01:16 15:46:52
     Dimensions: 8742x11656, crop mode 65:24 (XPan): 4302x11656
           Lens: XCD 28P, serial number: 8QHI15094 (year: 2024)

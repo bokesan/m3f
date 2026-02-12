@@ -28,7 +28,11 @@
 	  (exposure-mode (tag-value tiff #x8822))
 	  (tag0017 (tag-value tiff #x0017))
 	  (tag0018 (tag-value tiff #x0018)))
-      (tags "Device" #x0110 #x0015)
+      (let ((device (tag-value tiff :default "" #x0110 #x0015))
+	    (firmware (tag-value tiff #x0131)))
+	(val "Device" (if (and firmware (plusp (length device)))
+			  (format nil "~A, firmware ~A" device firmware)
+			  device)))
       (unless privacy
 	(tags "Created" #x9003))
       (label "Dimensions")

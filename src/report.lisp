@@ -148,11 +148,12 @@
 
 (defun detail (tiff &key (stream t) (filter :known) max-bytes words)
   "Show TIFF IFDs with entries."
-  (let ((tags (make-tag-table (list *standard-tags* hasselblad:*makernote-tags*))))
-    (format stream "Number of IFDs: ~D~%" (length (tiff-ifds tiff)))
+  (let ((tags (make-tag-table (list *standard-tags* hasselblad:*makernote-tags*)))
+	(ifds (collect-ifds tiff)))
+    (format stream "Number of IFDs: ~D~%" (length ifds))
     (map nil
 	 #'(lambda (ifd) (show-ifd ifd tags :stream stream :filter filter :max-bytes max-bytes :words words))
-	 (tiff-ifds tiff))))
+	 ifds)))
 
 (defun layout (tiff &optional (stream t))
   "Show TIFF file layout."

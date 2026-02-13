@@ -2,6 +2,7 @@
   (:use :cl :binary-buffer)
   (:import-from :alexandria :array-index :array-length :if-let :when-let)
   (:export :tiff :tiff-ifds :tiff-regions :read-tiff :tag-value
+	   :collect-ifds
            :*read-images*
            :ifd :ifd-name :ifd-address :ifd-entries
            :ifd-entry :ifd-entry-tag :ifd-entry-type :ifd-entry-count :ifd-entry-values
@@ -30,7 +31,8 @@
   (count 0 :type (unsigned-byte 32) :read-only t)
   ;; If count = 1, values is the single value. Otherwise, it's a vector the values.
   ;; The exception is type ASCII, which may have a single string even with count > 1.
-  (values nil :type (or atom simple-vector)))
+  (values nil :type (or atom simple-vector))
+  (ifds (vector) :type (vector ifd)))
 
 (defstruct ifd
   (name "" :type string :read-only t)
@@ -45,7 +47,7 @@
 
 (defstruct tiff
   (big-endian-p nil :read-only t)
-  ifds
+  (ifds (vector) :type (vector ifd))
   regions)
 
 (declaim (ftype (function (tiff array-index array-index string)) note-region))
@@ -60,13 +62,15 @@
 
 (defun find-tag (raw tag)
   (declare (optimize speed))
-  (map nil 
-       #'(lambda (ifd)
-	   (let ((e (find-if #'(lambda (entry) (= (ifd-entry-tag entry) tag))
-			     (ifd-entries ifd))))
-	     (when e
-	       (return-from find-tag e))))
-       (tiff-ifds raw)))
+  (labels ((search-ifds (ifds)
+	     (loop for ifd across ifds do (search-entries (ifd-entries ifd))))
+	   (search-entries (entries)
+	     (loop for e across entries do (check-entry e)))
+	   (check-entry (e)
+	     (when (= (ifd-entry-tag e) tag)
+	       (return-from find-tag e))
+	     (search-ifds (ifd-entry-ifds e))))
+    (search-ifds (tiff-ifds raw))))
 
 (defun tag-value (raw &rest tags)
   "Return the value of the first tag that is present and has a non-empty value."
@@ -82,6 +86,26 @@
             (let ((value (ifd-entry-values entry)))
 	      (unless (or (null value) (equalp value ""))
 		(return-from tag-value value))))))))
+
+
+(declaim (ftype (function (tiff &key (:order (member :breadth-first :depth-first)))
+			  (vector ifd))
+		collect-ifds))
+
+(defun collect-ifds (tiff &key (order :depth-first))
+  (let ((result (make-array 0 :element-type 'ifd :fill-pointer t :adjustable t)))
+    (labels ((dfs (ifds)
+	       (loop for ifd across ifds do
+		     (vector-push-extend ifd result)
+		     (loop for entry across (ifd-entries ifd) do
+			   (dfs (ifd-entry-ifds entry)))))
+	     (bfs (ifds)
+	       (error "BFS not implemenbted")))
+      (ecase order
+	(:depth-first (dfs (tiff-ifds tiff)))
+	(:breadth-first (bfs (tiff-ifds tiff))))
+      result)))
+
 
 (declaim (ftype (function (region region) t) region-precedes-p))
 (defun region-precedes-p (a b)
@@ -217,7 +241,7 @@
 
 
 (declaim
- (ftype (function (binary-buffer tiff cons (unsigned-byte 32)) (values ifd list)) parse-ifd)
+ (ftype (function (binary-buffer tiff cons (unsigned-byte 32)) (values ifd (unsigned-byte 32))) parse-ifd)
  (ftype (function (cons) cons) next-ifd-name))
 
 (defun next-ifd-name (name)
@@ -242,18 +266,26 @@
       (note-region info 0 2 "BOM")
       (note-region info 2 2 "Magic")
       (note-region info 4 4 "First IFD address")
-      (do ((rest-ifds (list (cons (cons "IFD" 0) (get-u32 bytes 4))) (cdr rest-ifds)))
-	  ((null rest-ifds))
-	(destructuring-bind (name . addr) (car rest-ifds)
-	  (handler-case
-	      (multiple-value-bind (ifd more-ifds)
-		  (parse-ifd bytes info name addr)
-		(push ifd ifds)
-		(setq rest-ifds (append rest-ifds more-ifds)))
-	    (end-of-file () (format t "warning: EOF while reading IFD ~S at 0x~8,'0X~%" name addr)))))
-      (setf (tiff-ifds info) (sort (coerce ifds 'vector) #'< :key #'ifd-address))
+      (setf (tiff-ifds info) (read-ifds bytes info "IFD" (get-u32 bytes 4)))
       (setf (tiff-regions info) (sort (coerce (tiff-regions info) 'vector) #'region-precedes-p))
       info)))
+
+
+(declaim (ftype (function (binary-buffer tiff string (unsigned-byte 32))
+			  (vector ifd))
+		read-ifds))
+
+(defun read-ifds (buf tiff ifd-type addr)
+  "Read IFDs, returning a vector."
+  (labels ((next-ifd (ifd-num addr)
+	     (handler-case
+		 (multiple-value-bind (ifd next-addr)
+		     (parse-ifd buf tiff (cons ifd-type ifd-num) addr)
+		   (cons ifd (if (zerop next-addr)
+				 nil
+				 (next-ifd (+ ifd-num 1) next-addr))))
+	       (end-of-file () (format t "warning: EOF while reading ~A~D at 0x~8,'0X~%" ifd-type ifd-num addr)))))
+    (coerce (next-ifd 0 addr) 'vector)))
 
 
 (defun read-image (buf strip-offsets strip-byte-counts)
@@ -272,11 +304,30 @@
     (t nil)))
     
 
+(declaim (ftype (function (binary-buffer tiff string (unsigned-byte 32) (integer 1 100))
+			  (vector ifd))
+		read-sub-ifds))
+
+(defun read-sub-ifds (buf tiff name voffs count)
+  (let ((xoffs (get-u32 buf voffs)))
+    (if (= count 1)
+	(read-ifds buf tiff name xoffs)
+	(let ((ifds (make-array count :element-type 'ifd)))
+	  (dotimes (i count)
+	    (let ((addr (get-u32 buf (+ xoffs (* 4 i)))))
+	      (handler-case
+		  (multiple-value-bind (ifd next-addr)
+		      (parse-ifd buf tiff (cons name i) addr)
+		    (unless (zerop next-addr)
+		      (error "SubIFD with count ~S chained" count))
+		    (setf (aref ifds i) ifd))
+		(end-of-file () (format t "warning: EOF while reading ~A~D at 0x~8,'0X~%" name i addr)))))
+	  ifds))))
+
 (defun parse-ifd (buf raw name offs)
-  "Parse IFD, returning a list of other IFDs to parse as second value."
+  "Parse IFD. Returns two values: the IFD and the address of the next IFD."
   (let* ((num-entries (get-u16 buf offs))
 	 (entries (make-array num-entries :element-type 'ifd-entry))
-	 (ifds nil)
 	 (image-length 0)
 	 (strip-offsets nil)
 	 (strip-byte-counts nil))
@@ -284,10 +335,11 @@
 		 (format nil "~a~a (~D entries, dec. addr: ~D)"
 			 (car name) (cdr name) num-entries offs))
     (dotimes (i num-entries)
-      (let ((tag (get-u16 buf (+ offs (* i 12) 2)))
-	    (type (get-u16 buf (+ offs (* i 12) 4)))
-	    (count (get-u32 buf (+ offs (* i 12) 6)))
-	    (voffs (+ offs (* i 12) 10)))
+      (let* ((tag (get-u16 buf (+ offs (* i 12) 2)))
+	     (type (get-u16 buf (+ offs (* i 12) 4)))
+	     (count (get-u32 buf (+ offs (* i 12) 6)))
+	     (entry (make-ifd-entry :tag tag :type type :count count))
+	     (voffs (+ offs (* i 12) 10)))
 	(case tag
 	  (257
 	   (unless (= count 1)
@@ -311,46 +363,24 @@
 	       (let ((offs (get-u32 buf voffs)))
 		 (dotimes (i count)
 		   (setf (aref strip-byte-counts i) (get-u32 buf (+ offs (* 4 i))))))))
-	  (#x14A
-	   (let ((xoffs (get-u32 buf voffs)))
-	     (if (= count 1)
-		 (push (cons (cons "SubIFD" 0) xoffs) ifds)
-		 (progn
-		   (note-region raw xoffs (* 4 count) (format nil "~a~a entry ~d: ~d SubIFD offsets" (car name) (cdr name) i count))
-		   (do ((k (- count 1) (- k 1)))
-		       ((< k 0))
-		     (push (cons (cons "SubIFD" k) (get-u32 buf (+ xoffs (* 4 k)))) ifds))))))
+	  (#x014A
+	   (setf (ifd-entry-ifds entry) (read-sub-ifds buf raw "SubIFD" voffs count)))
 	  (#x8769
-	   (let ((xoffs (get-u32 buf voffs)))
-	     (if (= count 1)
-		 (push (cons (cons "ExifIFD" 0) xoffs) ifds)
-		 (progn
-		   (note-region raw xoffs (* 4 count) (format nil "~a~a entry ~d: ~d ExifIFD offsets" (car name) (cdr name) i count))
-		   (do ((k (- count 1) (- k 1)))
-		       ((< k 0))
-		     (push (cons (cons "ExifIFD" k) (get-u32 buf (+ xoffs (* 4 k)))) ifds))))))
+	   (setf (ifd-entry-ifds entry) (read-sub-ifds buf raw "ExifIFD" voffs count)))
 	  (#xA005
-	   (let ((xoffs (get-u32 buf voffs)))
-	     (if (= count 1)
-		 (push (cons (cons "InteropIFD" 0) xoffs) ifds)
-		 (progn
-		   (note-region raw xoffs (* 4 count) (format nil "~a~a entry ~d: ~d InteropIFD offsets" (car name) (cdr name) i count))
-		   (do ((k (- count 1) (- k 1)))
-		       ((< k 0))
-		     (push (cons (cons "InteropIFD" k) (get-u32 buf (+ xoffs (* 4 k)))) ifds))))))	   
+	   (setf (ifd-entry-ifds entry) (read-sub-ifds buf raw "InteropIFD" voffs count)))
 	  (#x927c
-	   (let ((xoffs (get-u32 buf voffs)))
-	     (push (cons (cons "MakerNote" 0) xoffs) ifds))))
+	   (setf (ifd-entry-ifds entry) (read-sub-ifds buf raw "MakerNote" voffs 1))))
 	(unless (ifd-value-inline-p type count)
 	  (note-region raw (get-u32 buf voffs) (* count (tiff-type-size type))
 		       (format nil "~a~a entry ~d: ~d ~A values" (car name) (cdr name) i count (tiff-type-name type))))
-	(setf (aref entries i)
-	      (make-ifd-entry :tag tag :type type :count count
-			      :values (handler-case (get-values buf tag type count voffs)
+	(setf (ifd-entry-values entry)
+	      (handler-case (get-values buf tag type count voffs)
 					(end-of-file ()
 					  (format t "warning: EOF while reading values of ~a~a entry ~a~%"
 						  (car name) (cdr name) i)
-					  :EOF))))))
+					  :EOF)))
+	(setf (aref entries i) entry)))
     (unless (= (length strip-offsets) (length strip-byte-counts))
       (error "StripOffsets / StripByteCounts mismatch: ~S ~S" (length strip-offsets) (length strip-byte-counts)))
     (dotimes (i (length strip-offsets))
@@ -361,9 +391,7 @@
 			:address offs
 			:entries entries
 			:image (if *read-images* (read-image buf strip-offsets strip-byte-counts) nil))
-	      (if (zerop next)
-		  ifds
-		  (cons (cons (next-ifd-name name) next) ifds))))))
+	      next))))
 
 (defun get-ascii (buf offs num-bytes)
   "Get strings from ASCII field. Returns a list of strings (usually the list

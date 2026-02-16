@@ -11,7 +11,7 @@
 	(lens (tag-value tiff #xA434))
 	(val (tag-value tiff tag)))
     (when val
-      (format t "#x~,4x: ~S ~S ~S~%" tag val lens cam))))
+      (format t "#x~4,'0x: ~S ~S ~S~%" tag val lens cam))))
 
 (defun summary (tiff &key (stream t) privacy)
   "Show metadata summary as in Phocus \"Capture Info\" tab."

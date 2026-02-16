@@ -159,7 +159,7 @@
   "Write IFDs, returning a hash table of IFD -> image ref address."
   (let ((last-ifd-index (- (length ifds) 1))
 	(image-refs (make-hash-table :test #'eq)))
-    (dotimes (i num-ifds image-refs)
+    (dotimes (i (length ifds) image-refs)
       (resolve-forward-ref writer ref)
       (setf (gethash (aref ifds i) image-refs)
 	    (write-ifd writer (aref ifds i)))
@@ -175,7 +175,7 @@
     ;; TODO: sort images by length, writing the smaller ones first
     (loop for ifd across (collect-ifds tiff) do
 	  (when-let (ref (gethash ifd image-refs))
-	    (write-ifd-image writer ifd refs)))))
+	    (write-ifd-image writer ifd ref)))))
 
 
 (defun save-tiff (filename tiff)
@@ -197,14 +197,14 @@
   (let* ((strip-offsets-ref nil)
 	 (value-refs (map 'vector
 			  #'(lambda (e)
-			      (when (and (= (ifd-entry-tag e) 273) (integerp (ifd-entry-values e)))
+			      (when (and (= (ifd-entry-tag e) +strip-offsets+) (integerp (ifd-entry-values e)))
 				(setf strip-offsets-ref (record-forward-ref writer 8)))
 			      (write-ifd-entry writer e))
 			  (ifd-entries ifd))))
     (map nil
 	 #'(lambda (e ref)
 	     (when ref
-	       (when (= (ifd-entry-tag e) 273)
+	       (when (= (ifd-entry-tag e) +strip-offsets+)
 		 (setf strip-offsets-ref (record-forward-ref writer 0)))
 	       (write-ifd-entry-values writer e ref)))
 	 (ifd-entries ifd)
@@ -217,11 +217,15 @@ If the value if too long to write it inline, returns the adress of the forward r
 Otherwise, returns nil."
   (write-u16 writer (ifd-entry-tag entry))
   (write-u16 writer (ifd-entry-type entry))
+  ;; TODO: special handling of Hasselblad Makernotes needed: length goes here
   (write-u32 writer (ifd-entry-count entry))
-  (if (ifd-value-inline-p (ifd-entry-type entry) (ifd-entry-count entry))
-      (progn (write-inline-value writer entry)
-	     nil)
-      (write-forward-ref writer)))
+  (cond
+    ((and (ifd-value-inline-p (ifd-entry-type entry) (ifd-entry-count entry))
+	  (zerop (length (ifd-entry-ifds entry))))
+     (write-inline-value writer entry)
+     nil)
+    (t
+     (write-forward-ref writer))))
 
 (defun write-inline-value (writer entry)
   (let ((count (ifd-entry-count entry))
@@ -263,50 +267,79 @@ Otherwise, returns nil."
       ;; TODO: +FLOAT+
       )))
 
-(defun write-bytes (writer bs)
+(defun write-bytes (writer bs &key (start 0) end)
   (if (vectorp bs)
-      (loop for b across bs do (write-u8 writer b))
+      (if (or (plusp start) end)
+	  (loop for i from start below end do
+		(write-u8 writer (aref bs i)))
+	  (loop for b across bs do (write-u8 writer b)))
       (write-u8 writer bs)))
-  
+
 (defun write-ifd-entry-values (writer entry ref)
   (writer-align-2 writer)
   (resolve-forward-ref writer ref)
-  (let ((values (ifd-entry-values entry)))
-    (ecase (ifd-entry-type entry)
-      ((#.+BYTE+ #.+UNDEFINED+)
-       (write-bytes writer values))
-      (#.+SBYTE+
-       (write-sbytes writer values))
-      (#.+ASCII+
-       (cond ((stringp values)
-	      (loop for c across values do
-		    (write-u8 writer (char-code c)))
-	      (write-u8 writer 0))
-	     (t
-	      (loop for str across values do
-		    (loop for c across str do
-			  (write-u8 writer (char-code c)))
-		    (write-u8 writer 0)))))
-      (#.+SHORT+
-       (map nil #'(lambda (w) (write-u16 writer w)) values))
-      (#.+LONG+
-       (map nil #'(lambda (w) (write-u32 writer w)) values))
-      (#.+RATIONAL+
-       (if (vectorp values)
-	   (map nil #'(lambda (r) (write-rational writer r)) values)
-	   (write-rational writer values)))
-      (#.+SSHORT+
-       (map nil #'(lambda (w) (write-s16 writer w)) values))
-      (#.+SLONG+
-       (map nil #'(lambda (w) (write-s32 writer w)) values))
-      (#.+SRATIONAL+
-       (if (vectorp values)
-	   (map nil #'(lambda (r) (write-srational writer r)) values)
-	   (write-srational writer values)))
-      ;; TODO: +FLOAT+ +DOUBLE+
-      )))
+  (if (plusp (length (ifd-entry-ifds entry)))
+      (write-ifd-entry-ifd-value writer entry)
+      (let ((values (ifd-entry-values entry)))
+	(ecase (ifd-entry-type entry)
+	  ((#.+BYTE+ #.+UNDEFINED+)
+	   (write-bytes writer values))
+	  (#.+SBYTE+
+	   (write-sbytes writer values))
+	  (#.+ASCII+
+	   (cond ((stringp values)
+		  (loop for c across values do
+			(write-u8 writer (char-code c)))
+		  (write-u8 writer 0))
+		 (t
+		  (loop for str across values do
+			(loop for c across str do
+			      (write-u8 writer (char-code c)))
+			(write-u8 writer 0)))))
+	  (#.+SHORT+
+	   (map nil #'(lambda (w) (write-u16 writer w)) values))
+	  (#.+LONG+
+	   (if (= (ifd-entry-tag entry) +strip-offsets+)
+	       (dotimes (i (ifd-entry-count entry))
+		 (write-forward-ref writer))
+	       (map nil #'(lambda (w) (write-u32 writer w)) values)))
+	  (#.+RATIONAL+
+	   (if (vectorp values)
+	       (map nil #'(lambda (r) (write-rational writer r)) values)
+	       (write-rational writer values)))
+	  (#.+SSHORT+
+	   (map nil #'(lambda (w) (write-s16 writer w)) values))
+	  (#.+SLONG+
+	   (map nil #'(lambda (w) (write-s32 writer w)) values))
+	  (#.+SRATIONAL+
+	   (if (vectorp values)
+	       (map nil #'(lambda (r) (write-srational writer r)) values)
+	       (write-srational writer values)))
+	  ;; TODO: +FLOAT+ +DOUBLE+
+	  ))))
+
+(defun write-ifd-image (writer ifd ref)
+  (when (ifd-image ifd)
+    (format t "Entries: ~D~%" (length (ifd-entries ifd)))
+    (loop for e across (ifd-entries ifd) and i from 1 do
+	  (format t "  ~2D: ~4D ~3D~%" i (ifd-entry-tag e) (ifd-entry-count e)))
+    (let* ((entry (find-entry ifd +strip-byte-counts+))
+	   (count (ifd-entry-count entry))
+	   (strip-byte-counts (ifd-entry-values entry)))
+      (cond ((= count 1)
+	     (writer-align-2 writer)
+	     (resolve-forward-ref writer ref)
+	     (write-bytes writer (ifd-image ifd)))
+	    (t
+	     (loop for len across strip-byte-counts
+		   and offs = 0 then (+ offs len)
+		   and ref-addr = ref then (+ ref-addr 4)
+		   do
+		   (writer-align-2 writer)
+		   (resolve-forward-ref writer ref-addr)
+		   (write-bytes writer (ifd-image ifd) :start offs :end (+ offs len))))))))
 
 (defun test-copy ()
   (let* ((*read-images* t)
-	 (tiff (read-tiff "B0001400.3FR")))
-    (save-tiff "B0001400-copy.3FR" tiff)))
+	 (tiff (read-tiff "/home/chris/tmp/photo-tech/CFV100C/B0000022.3FR")))
+    (save-tiff "B0000022-copy.3FR" tiff)))

@@ -27,7 +27,7 @@
 
 (defstruct ifd-entry
   (tag 0 :type (unsigned-byte 16) :read-only t)
-  (type 0 :type (unsigned-byte 16) :read-only t)
+  (type 0 :type (integer 1 12) :read-only t)
   (count 0 :type (unsigned-byte 32) :read-only t)
   ;; If count = 1, values is the single value. Otherwise, it's a vector the values.
   ;; The exception is type ASCII, which may have a single string even with count > 1.
@@ -55,6 +55,13 @@
   (push (make-region :start start :end (+ start len) :description name) (tiff-regions f)))
 
 #+SBCL (declaim (sb-ext:freeze-type ifd ifd-entry region tiff))
+
+
+(declaim (ftype (function (ifd (unsigned-byte 16)) (or null ifd-entry)) find-entry))
+
+(defun find-entry (ifd tag)
+  (find-if #'(lambda (e) (= (ifd-entry-tag e) tag)) (ifd-entries ifd)))
+
 
 (declaim (ftype (function (tiff (unsigned-byte 16))
 			  (or null ifd-entry))
@@ -138,6 +145,13 @@
   (defconstant +SRATIONAL+ 10)
   (defconstant +FLOAT+ 11)
   (defconstant +DOUBLE+ 12))
+
+;; A few important tags
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defconstant +image-length+ 257)
+  (defconstant +strip-offsets+ 273)
+  (defconstant +rows-per-strip+ 278)
+  (defconstant +strip-byte-counts+ 279))
 
 (declaim (ftype (function ((unsigned-byte 16)) string) tiff-type-name))
 (let ((names (vector "0" "BYTE" "ASCII" "SHORT" "LONG" "RATIONAL"
@@ -287,22 +301,20 @@
 	       (end-of-file () (format t "warning: EOF while reading ~A~D at 0x~8,'0X~%" ifd-type ifd-num addr)))))
     (coerce (next-ifd 0 addr) 'vector)))
 
+(declaim (ftype (function (binary-buffer (or null vector) (or null vector))
+			  (or null (simple-array (unsigned-byte 8) (*))))
+		read-image))
 
 (defun read-image (buf strip-offsets strip-byte-counts)
-  (typecase strip-offsets
-    (unsigned-byte
-     (get-bytes buf strip-offsets strip-byte-counts))
-    (vector
-     (let* ((len (reduce #'+ strip-byte-counts))
-	    (img (make-array len :element-type '(unsigned-byte 8))))
-       (loop for strip across strip-offsets
-	     and count across strip-byte-counts
-	     and offs = 0 then (+ offs count)
-	     do
-	     (setf (subseq img offs count) (get-bytes buf strip count)))
-       img))
-    (t nil)))
-    
+  (when strip-offsets
+    (let* ((len (reduce #'+ strip-byte-counts))
+	   (img (make-array len :element-type '(unsigned-byte 8))))
+      (loop for strip across strip-offsets
+	    and count across strip-byte-counts
+	    and offs = 0 then (+ offs count)
+	    do
+	    (setf (subseq img offs (+ offs count)) (get-bytes buf strip count)))
+      img)))
 
 (declaim (ftype (function (binary-buffer tiff string (unsigned-byte 32) (integer 1 100))
 			  (vector ifd))
@@ -341,22 +353,20 @@
 	     (entry (make-ifd-entry :tag tag :type type :count count))
 	     (voffs (+ offs (* i 12) 10)))
 	(case tag
-	  (257
+	  (#.+image-length+
 	   (unless (= count 1)
 	     (error "ImageLength should have count 1, but has ~S" count))
 	   (unless (zerop image-length)
 	     (error "Multiple ImageLength tags encountered"))
 	   (setq image-length (get-u32 buf voffs)))
-	  (273 ; StripOffsets
+	  (#.+strip-offsets+
 	   (setq strip-offsets (make-array count :element-type '(unsigned-byte 32)))
 	   (if (= count 1)
 	       (setf (aref strip-offsets 0) (get-u32 buf voffs))
 	       (let ((offs (get-u32 buf voffs)))
 		 (dotimes (i count)
 		   (setf (aref strip-offsets i) (get-u32 buf (+ offs (* 4 i))))))))
-	  (278 ; RowsPerStrip
-	   )
-	  (279 ; StripByteCounts
+	  (#.+strip-byte-counts+
 	   (setq strip-byte-counts (make-array count :element-type '(unsigned-byte 32)))
 	   (if (= count 1)
 	       (setf (aref strip-byte-counts 0) (get-u32 buf voffs))

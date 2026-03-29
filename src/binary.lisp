@@ -3,7 +3,6 @@
   (:use :cl)
   (:shadow :close)
   (:import-from :alexandria :array-length :array-index)
-  (:import-from :arrays :copy-bytes)
   (:export :binary-buffer :binary-buffer-p
 	   :binary-buffer-big-endian-p
 	   :binary-buffer-length
@@ -142,5 +141,7 @@
 	       (missing (- len i))
 	       (in-chunk (- (length chunk) chunk-offset))
 	       (n (min missing in-chunk)))
-	  (copy-bytes chunk chunk-offset result i n)
+	  (replace result chunk
+		   :start1 i :end1 (+ i n)
+		   :start2 chunk-offset :end2 (+ chunk-offset n))
 	  (incf i n))))))

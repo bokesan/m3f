@@ -21,7 +21,7 @@
 (declaim (inline writer-current-pos))
 (defun writer-current-pos (writer)
   (+ (writer-buf-start writer) (length (writer-buf writer))))
-
+  
 (defun flush-when-possible (writer)
   "Flush the buffer when +BLOCK-SIZE+ bytes are available for writing."
   (let* ((buf (writer-buf writer))
@@ -33,8 +33,7 @@
       (incf (writer-buf-start writer) +BLOCK-SIZE+)
       (decf len +BLOCK-SIZE+)
       (setf (fill-pointer buf) len)
-      (dotimes (i len)
-	(setf (aref buf i) (aref buf (+ i +BLOCK-SIZE+)))))))
+      (replace buf buf :end1 len :start2 +BLOCK-SIZE+))))
 
 (defun writer-flush (writer)
   (unless (null (writer-holes writer))

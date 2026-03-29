@@ -5,8 +5,7 @@
   :license "MIT"
   :depends-on ("alexandria")
   :pathname "src"
-  :components ((:file "arrays")
-	       (:file "binary" :depends-on ("arrays"))
+  :components ((:file "binary")
 	       (:file "tiff" :depends-on ("binary"))
 	       (:file "tiff-tags" :depends-on ("tiff"))
 	       (:file "tiff-writer" :depends-on ("tiff"))
@@ -23,6 +22,5 @@
 (defsystem "m3f/tests"
     :depends-on ("fiveam" "m3f")
     :pathname "test"
-    :components ((:file "arrays-tests")
-		 (:file "tiff-tests")
+    :components ((:file "tiff-tests")
 		 (:file "report-tests")))

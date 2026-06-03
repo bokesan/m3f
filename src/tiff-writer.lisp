@@ -56,7 +56,7 @@
 	   (setf (aref buf pos) b3)
 	   (setf (aref buf (+ pos 1)) b2)
 	   (setf (aref buf (+ pos 2)) b1)
-	   (setf (aref buf (+ pos 3)) b0))
+<	   (setf (aref buf (+ pos 3)) b0))
 	  (t
 	   (setf (aref buf pos) b0)
 	   (setf (aref buf (+ pos 1)) b1)
@@ -338,7 +338,8 @@ Otherwise, returns nil."
 		   (resolve-forward-ref writer ref-addr)
 		   (write-bytes writer (ifd-image ifd) :start offs :end (+ offs len))))))))
 
-(defun test-copy ()
+(defun test-copy (file)
   (let* ((*read-images* t)
-	 (tiff (read-tiff "/home/chris/tmp/photo-tech/CFV100C/B0000022.3FR")))
-    (save-tiff "B0000022-copy.3FR" tiff)))
+	 (tiff (read-tiff file))
+	 (name (concatenate 'string "copy-of-" (file-namestring file))))
+    (save-tiff name tiff)))

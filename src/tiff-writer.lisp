@@ -23,7 +23,7 @@
   (+ (writer-buf-start writer) (length (writer-buf writer))))
   
 (defun flush-when-possible (writer)
-  "Flush the buffer when +BLOCK-SIZE+ bytes are available for writing."
+  "Flush the buffer when at least +BLOCK-SIZE+ bytes are available for writing."
   (let* ((buf (writer-buf writer))
 	 (len (length buf)))
     (when (and (>= len +BLOCK-SIZE+)
@@ -32,8 +32,8 @@
       (write-sequence buf (writer-stream writer) :end +BLOCK-SIZE+)
       (incf (writer-buf-start writer) +BLOCK-SIZE+)
       (decf len +BLOCK-SIZE+)
-      (setf (fill-pointer buf) len)
-      (replace buf buf :end1 len :start2 +BLOCK-SIZE+))))
+      (replace buf buf :end1 len :start2 +BLOCK-SIZE+)
+      (setf (fill-pointer buf) len))))
 
 (defun writer-flush (writer)
   (unless (null (writer-holes writer))
@@ -56,7 +56,7 @@
 	   (setf (aref buf pos) b3)
 	   (setf (aref buf (+ pos 1)) b2)
 	   (setf (aref buf (+ pos 2)) b1)
-<	   (setf (aref buf (+ pos 3)) b0))
+	   (setf (aref buf (+ pos 3)) b0))
 	  (t
 	   (setf (aref buf pos) b0)
 	   (setf (aref buf (+ pos 1)) b1)
@@ -273,6 +273,12 @@ Otherwise, returns nil."
 		(write-u8 writer (aref bs i)))
 	  (loop for b across bs do (write-u8 writer b)))
       (write-u8 writer bs)))
+
+
+(defun write-ifd-entry-ifd-value (writer entry)
+  "Write an IFD as value of an IFD entry."
+  nil)
+
 
 (defun write-ifd-entry-values (writer entry ref)
   (writer-align-2 writer)

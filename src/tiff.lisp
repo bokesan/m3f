@@ -38,6 +38,7 @@
   (name "" :type string :read-only t)
   (address 0 :type (unsigned-byte 32) :read-only t)
   (entries nil :type (simple-array ifd-entry (*)) :read-only t)
+  (original-image-offset nil :type (or null (unsigned-byte 32)))
   (image nil :type (or null (simple-array (unsigned-byte 8) (*)))))
 
 (defstruct region
@@ -407,11 +408,13 @@
     (dotimes (i (length strip-offsets))
       (note-region raw (aref strip-offsets i) (aref strip-byte-counts i)
 		   (format nil "~a~a strip ~d/~d" (car name) (cdr name) (1+ i) (length strip-offsets))))
-    (let ((next (get-u32 buf (+ offs 2 (* num-entries 12)))))
+    (let ((next (get-u32 buf (+ offs 2 (* num-entries 12))))
+	  (image (if *read-images* (read-image buf strip-offsets strip-byte-counts) nil)))
       (values (make-ifd :name (format nil "~A~A" (car name) (cdr name))
 			:address offs
 			:entries entries
-			:image (if *read-images* (read-image buf strip-offsets strip-byte-counts) nil))
+			:original-image-offset (if strip-offsets (aref strip-offsets 0) nil)
+			:image image)
 	      next))))
 
 (defun get-ascii (buf offs num-bytes)

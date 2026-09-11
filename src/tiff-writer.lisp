@@ -198,12 +198,15 @@
   "Write TIFF to WRITER."
   (write-u16 writer (if (tiff-big-endian-p tiff) #x4D4D #x4949))
   (write-u16 writer 42)
-  (let ((image-refs (write-ifds writer (tiff-ifds tiff) (write-forward-ref writer "first IFD"))))
-    ;; TODO: sort images by length, writing the smaller ones first
-    (loop for ifd across (collect-ifds tiff) do
-	  ;; (format t "IFD ~A has image ~S and ref ~S~%"
-	  ;; 	  (ifd-name ifd) (not (null (ifd-image ifd))) (gethash ifd image-refs))
-	  (when-let (ref (gethash ifd image-refs))
+  (let* ((image-refs (write-ifds writer (tiff-ifds tiff) (write-forward-ref writer "first IFD")))
+	 (images (sort (loop for ifd across (collect-ifds tiff)
+			     when (ifd-image ifd)
+			     collect ifd)
+		       #'< :key #'ifd-original-image-offset)))
+    (loop for ifd in images do
+	  (let ((ref (gethash ifd image-refs)))
+	    (unless ref
+	      (error "image without ref in ~A" (ifd-name ifd)))
 	    (write-ifd-image writer ifd ref)))))
 
 
@@ -216,7 +219,7 @@
 
 (declaim
  (ftype (function (writer ifd-entry) (or null (unsigned-byte 32))) write-ifd-entry)
- (ftype (function (writer ifd-entry (unsigned-byte 32) hash-table)) write-ifd-entry-values))
+ (ftype (function (writer ifd-entry (unsigned-byte 32))) write-ifd-entry-values))
 
 
 (defun write-ifd (writer ifd image-refs &key link)
@@ -244,7 +247,7 @@
 	       (when (and ref (zerop (length (ifd-entry-ifds e))))
 		 (when (= (ifd-entry-tag e) +strip-offsets+)
 		   (setf (gethash ifd image-refs) (record-forward-ref writer 0 "strip offsets 2")))
-		 (write-ifd-entry-values writer e ref image-refs)))
+		 (write-ifd-entry-values writer e ref)))
 	   (ifd-entries ifd)
 	   value-refs)
       (map nil
@@ -338,7 +341,7 @@ Otherwise, returns nil."
     (write-ifd writer (aref ifds 0) image-refs)))
 
 
-(defun write-ifd-entry-values (writer entry ref image-refs)
+(defun write-ifd-entry-values (writer entry ref)
   (declare (type ifd-entry entry))
   (writer-align-2 writer)
   (resolve-forward-ref writer ref)

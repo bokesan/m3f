@@ -175,6 +175,17 @@
 (defun ifd-value-inline-p (type count)
   (<= (* count (tiff-type-size type)) 4))
 
+
+(declaim (ftype (function ((or (unsigned-byte 32) (signed-byte 32))
+			   (or (unsigned-byte 32) (signed-byte 32)))
+			  rational)
+		safe/))
+(defun safe/ (n d)
+  (if (zerop d)
+      0
+      (/ n d)))
+
+
 (declaim (ftype (function (binary-buffer array-index array-index) list) get-ascii))
 
 (declaim (ftype (function (binary-buffer (unsigned-byte 16) (unsigned-byte 16) (unsigned-byte 32) (unsigned-byte 32)) t) get-values))
@@ -196,14 +207,14 @@
 			       (d (get-u32 raw (+ addr 4))))
 			   (if (apex-tag-p tag)
 			       (apex-value n d)
-			       (/ n d))))
+			       (safe/ n d))))
 	   (#.+SSHORT+ (get-s16 raw addr))
 	   (#.+SLONG+ (get-s32 raw addr))
 	   (#.+SRATIONAL+ (let ((n (get-s32 raw addr))
 				(d (get-s32 raw (+ addr 4))))
 			    (if (apex-tag-p tag)
 				(apex-value n d)
-				(/ n d))))
+				(safe/ n d))))
 	   (#.+FLOAT+ (get-float raw addr))
 	   (#.+DOUBLE+ (get-double raw addr))
 	   (t 'unknown-type)))
@@ -230,7 +241,7 @@
 			       (setf (aref xs i)
 				     (if (apex-tag-p tag)
 					 (apex-value n d)
-					 (/ n d)))))))
+					 (safe/ n d)))))))
 	   (#.+SRATIONAL+ (let ((xs (make-array count :element-type 'rational)))
 			    (dotimes (i count xs)
 			      (let ((n (get-s32 raw (+ addr (* i 8))))
@@ -238,7 +249,7 @@
 				(setf (aref xs i)
 				      (if (apex-tag-p tag)
 					  (apex-value n d)
-					  (/ n d)))))))
+					  (safe/ n d)))))))
 	   (#.+SSHORT+ (let ((xs (make-array count :element-type '(signed-byte 16))))
 			 (dotimes (i count xs)
 			   (setf (aref xs i) (get-s16 raw (+ addr (* i 2)))))))

@@ -2,6 +2,11 @@
 
 (defconstant +BLOCK-SIZE+ 4096)
 
+(defstruct hole
+  (addr 0 :type (unsigned-byte 32) :read-only t)
+  (label "" :type string :read-only t))
+
+#+sbcl (declaim (sb-ext:freeze-type hole))
 
 (defstruct (writer (:constructor %make-writer))
   (stream nil :type stream :read-only t)
@@ -21,13 +26,16 @@
 (declaim (inline writer-current-pos))
 (defun writer-current-pos (writer)
   (+ (writer-buf-start writer) (length (writer-buf writer))))
-  
+
+(declaim (ftype (function (writer)) flush-when-possible writer-flush))
+(declaim (ftype (function (writer) boolean) writer-flush-fully))
+
 (defun flush-when-possible (writer)
   "Flush the buffer when at least +BLOCK-SIZE+ bytes are available for writing."
   (let* ((buf (writer-buf writer))
 	 (len (length buf)))
     (when (and (>= len +BLOCK-SIZE+)
-	       (notany #'(lambda (addr) (< (- addr (writer-buf-start writer)) +BLOCK-SIZE+))
+	       (notany #'(lambda (hole) (< (- (hole-addr hole) (writer-buf-start writer)) +BLOCK-SIZE+))
 		       (writer-holes writer)))
       (write-sequence buf (writer-stream writer) :end +BLOCK-SIZE+)
       (incf (writer-buf-start writer) +BLOCK-SIZE+)
@@ -35,11 +43,19 @@
       (replace buf buf :end1 len :start2 +BLOCK-SIZE+)
       (setf (fill-pointer buf) len))))
 
+
+(defun writer-flush-fully (writer)
+  (cond ((writer-holes writer) nil)
+	(t (write-sequence (writer-buf writer) (writer-stream writer))
+	   (setf (fill-pointer (writer-buf writer)) 0)
+	   t)))
+      
 (defun writer-flush (writer)
-  (unless (null (writer-holes writer))
-    (error "output still has holes ~S" writer))
-  (write-sequence (writer-buf writer) (writer-stream writer))
-  (setf (fill-pointer (writer-buf writer)) 0))
+  (unless (writer-flush-fully writer)
+    (error "output still has holes. Size: ~D, start: ~D, holes: ~S"
+	   (length (writer-buf writer))
+	   (writer-buf-start writer)
+	   (writer-holes writer))))
 
 (declaim (ftype (function (writer (unsigned-byte 32) (unsigned-byte 32))) set-u32))
 
@@ -71,8 +87,12 @@
 (declaim (ftype (function (writer (signed-byte 16))) write-s16))
 (declaim (ftype (function (writer (signed-byte 32))) write-s32))
 
+(declaim (inline write-u8-noflush))
+(defun write-u8-noflush (writer byte)
+  (vector-push-extend byte (writer-buf writer) 1024))
+
 (defun write-u8 (writer byte)
-  (vector-push-extend byte (writer-buf writer) 1024)
+  (write-u8-noflush writer byte)
   (flush-when-possible writer))
 
 (defun write-s8 (writer byte)
@@ -82,11 +102,12 @@
   (multiple-value-bind (b1 b0)
       (floor word 256)
     (cond ((writer-big-endian-p writer)
-	   (write-u8 writer b1)
-	   (write-u8 writer b0))
+	   (write-u8-noflush writer b1)
+	   (write-u8-noflush writer b0))
 	  (t
-	   (write-u8 writer b0)
-	   (write-u8 writer b1)))))
+	   (write-u8-noflush writer b0)
+	   (write-u8-noflush writer b1)))
+    (flush-when-possible writer)))
 
 (defun write-u32 (writer value)
   (let ((b0 (logand value #xFF))
@@ -94,15 +115,16 @@
 	(b2 (logand (floor value #x10000) #xFF))
 	(b3 (logand (floor value #x1000000))))
     (cond ((writer-big-endian-p writer)
-	   (write-u8 writer b3)
-	   (write-u8 writer b2)
-	   (write-u8 writer b1)
-	   (write-u8 writer b0))
+	   (write-u8-noflush writer b3)
+	   (write-u8-noflush writer b2)
+	   (write-u8-noflush writer b1)
+	   (write-u8-noflush writer b0))
 	  (t
-	   (write-u8 writer b0)
-	   (write-u8 writer b1)
-	   (write-u8 writer b2)
-	   (write-u8 writer b3)))))
+	   (write-u8-noflush writer b0)
+	   (write-u8-noflush writer b1)
+	   (write-u8-noflush writer b2)
+	   (write-u8-noflush writer b3)))
+    (flush-when-possible writer)))
 
 (defun write-s16 (writer n)
   (write-u16 writer (if (minusp n) (+ #x10000 n) n)))
@@ -116,26 +138,26 @@
 
 
 (declaim
- (ftype (function (writer) (unsigned-byte 32)) write-forward-ref)
- (ftype (function (writer (unsigned-byte 32)) (unsigned-byte 32)) record-forward-ref))
+ (ftype (function (writer &optional string) (unsigned-byte 32)) write-forward-ref)
+ (ftype (function (writer (unsigned-byte 32) &optional string) (unsigned-byte 32)) record-forward-ref))
  
 
-(defun write-forward-ref (writer)
+(defun write-forward-ref (writer &optional (label ""))
   (let ((ref-addr (writer-current-pos writer)))
-    (push ref-addr (writer-holes writer))
+    (push (make-hole :addr ref-addr :label label) (writer-holes writer))
     (write-u32 writer 0)
     ref-addr))
 
-(defun record-forward-ref (writer offset)
+(defun record-forward-ref (writer offset &optional (label ""))
   (let ((ref-addr (+ (writer-current-pos writer) offset)))
-    (push ref-addr (writer-holes writer))
+    (push (make-hole :addr ref-addr :label label) (writer-holes writer))
     ref-addr))
 
 
 (declaim (ftype (function (writer (unsigned-byte 32))) resolve-forward-ref))
 
 (defun resolve-forward-ref (writer ref)
-  (setf (writer-holes writer) (delete ref (writer-holes writer)))
+  (setf (writer-holes writer) (delete ref (writer-holes writer) :key #'hole-addr))
   (set-u32 writer ref (writer-current-pos writer)))
 
 
@@ -150,7 +172,7 @@
 
 (declaim
  (ftype (function (writer tiff)) write-tiff)
- (ftype (function (writer ifd) (or null (unsigned-byte 32))) write-ifd)
+ (ftype (function (writer ifd hash-table)) write-ifd)
  (ftype (function (writer ifd (unsigned-byte 32))) write-ifd-image)
  (ftype (function (writer (vector ifd) (unsigned-byte 32)) hash-table) write-ifds))
 
@@ -160,19 +182,20 @@
 	(image-refs (make-hash-table :test #'eq)))
     (dotimes (i (length ifds) image-refs)
       (resolve-forward-ref writer ref)
-      (setf (gethash (aref ifds i) image-refs)
-	    (write-ifd writer (aref ifds i)))
+      (write-ifd writer (aref ifds i) image-refs)
       (if (= i last-ifd-index)
 	  (write-u32 writer 0)
-	  (setf ref (write-forward-ref writer))))))
+	  (setf ref (write-forward-ref writer "IFD link"))))))
 
 (defun write-tiff (writer tiff)
   "Write TIFF to WRITER."
   (write-u16 writer (if (tiff-big-endian-p tiff) #x4D4D #x4949))
   (write-u16 writer 42)
-  (let ((image-refs (write-ifds writer (tiff-ifds tiff) (write-forward-ref writer))))
+  (let ((image-refs (write-ifds writer (tiff-ifds tiff) (write-forward-ref writer "first IFD"))))
     ;; TODO: sort images by length, writing the smaller ones first
     (loop for ifd across (collect-ifds tiff) do
+	  (format t "IFD ~A has image ~S and ref ~S~%"
+		  (ifd-name ifd) (not (null (ifd-image ifd))) (gethash ifd image-refs))
 	  (when-let (ref (gethash ifd image-refs))
 	    (write-ifd-image writer ifd ref)))))
 
@@ -186,29 +209,33 @@
 
 (declaim
  (ftype (function (writer ifd-entry) (or null (unsigned-byte 32))) write-ifd-entry)
- (ftype (function (writer ifd-entry (unsigned-byte 32))) write-ifd-entry-values))
+ (ftype (function (writer ifd-entry (unsigned-byte 32) hash-table)) write-ifd-entry-values))
 
 
-(defun write-ifd (writer ifd)
-  "Write IFD. TODO: return image ref address or nil if no image."
+(defun write-ifd (writer ifd image-refs)
+  "Write IFD."
   (writer-align-2 writer)
   (write-u16 writer (length (ifd-entries ifd)))
-  (let* ((strip-offsets-ref nil)
-	 (value-refs (map 'vector
-			  #'(lambda (e)
-			      (when (and (= (ifd-entry-tag e) +strip-offsets+) (integerp (ifd-entry-values e)))
-				(setf strip-offsets-ref (record-forward-ref writer 8)))
-			      (write-ifd-entry writer e))
-			  (ifd-entries ifd))))
+  (let (;; write entries, returning a vector of value backrefs
+	(value-refs (map 'vector
+			 #'(lambda (e)
+			     (when (and (= (ifd-entry-tag e) +strip-offsets+) (integerp (ifd-entry-values e)))
+			       ;; single strip offset
+			       (setf (gethash ifd image-refs)
+				     (record-forward-ref writer 8
+				       (format nil "strip offsets ~A" (ifd-name ifd)))))
+			     (write-ifd-entry writer e))
+			 (ifd-entries ifd))))
+    ;; write offline values
     (map nil
 	 #'(lambda (e ref)
 	     (when ref
 	       (when (= (ifd-entry-tag e) +strip-offsets+)
-		 (setf strip-offsets-ref (record-forward-ref writer 0)))
-	       (write-ifd-entry-values writer e ref)))
+		 (setf (gethash ifd image-refs) (record-forward-ref writer 0 "strip offsets 2")))
+	       (write-ifd-entry-values writer e ref image-refs)))
 	 (ifd-entries ifd)
 	 value-refs)
-    strip-offsets-ref))
+    nil))
 
 (defun write-ifd-entry (writer entry)
   "Write IFD entry.
@@ -224,7 +251,7 @@ Otherwise, returns nil."
      (write-inline-value writer entry)
      nil)
     (t
-     (write-forward-ref writer))))
+     (write-forward-ref writer "IFD entry value address"))))
 
 (defun write-inline-value (writer entry)
   (let ((count (ifd-entry-count entry))
@@ -267,24 +294,38 @@ Otherwise, returns nil."
       )))
 
 (defun write-bytes (writer bs &key (start 0) end)
+  (declare (type writer writer)
+	   (type (or (unsigned-byte 8) (simple-array (unsigned-byte 8) (*))) bs)
+	   (type array-index start)
+	   (type (or null array-index) end)
+	   (optimize speed))
   (if (vectorp bs)
-      (if (or (plusp start) end)
-	  (loop for i from start below end do
-		(write-u8 writer (aref bs i)))
-	  (loop for b across bs do (write-u8 writer b)))
+      (if (and (> (length bs) 4) (writer-flush-fully writer))
+	  (write-sequence bs (writer-stream writer) :start start :end end)
+	  (if (or (plusp start) end)
+	      (loop for i from start below end do
+		    (write-u8 writer (aref bs i)))
+	      (loop for b across bs do (write-u8 writer b))))
       (write-u8 writer bs)))
 
 
-(defun write-ifd-entry-ifd-value (writer entry)
+(defun write-ifd-entry-ifd-value (writer entry image-refs)
   "Write an IFD as value of an IFD entry."
-  nil)
+  (declare (type writer writer)
+	   (type ifd-entry entry))
+  (let ((ifds (ifd-entry-ifds entry)))
+    (unless (= (length ifds) 1)
+      (error "can't handle multiple IFDs in entry"))
+    (write-ifd writer (aref ifds 0) image-refs)
+    (write-u32 writer 0)))
 
 
-(defun write-ifd-entry-values (writer entry ref)
+(defun write-ifd-entry-values (writer entry ref image-refs)
+  (declare (type ifd-entry entry))
   (writer-align-2 writer)
   (resolve-forward-ref writer ref)
   (if (plusp (length (ifd-entry-ifds entry)))
-      (write-ifd-entry-ifd-value writer entry)
+      (write-ifd-entry-ifd-value writer entry image-refs)
       (let ((values (ifd-entry-values entry)))
 	(ecase (ifd-entry-type entry)
 	  ((#.+BYTE+ #.+UNDEFINED+)
@@ -306,7 +347,7 @@ Otherwise, returns nil."
 	  (#.+LONG+
 	   (if (= (ifd-entry-tag entry) +strip-offsets+)
 	       (dotimes (i (ifd-entry-count entry))
-		 (write-forward-ref writer))
+		 (write-forward-ref writer "strip offsets 3"))
 	       (map nil #'(lambda (w) (write-u32 writer w)) values)))
 	  (#.+RATIONAL+
 	   (if (vectorp values)
@@ -325,12 +366,10 @@ Otherwise, returns nil."
 
 (defun write-ifd-image (writer ifd ref)
   (when (ifd-image ifd)
-    (format t "Entries: ~D~%" (length (ifd-entries ifd)))
-    (loop for e across (ifd-entries ifd) and i from 1 do
-	  (format t "  ~2D: ~4D ~3D~%" i (ifd-entry-tag e) (ifd-entry-count e)))
     (let* ((entry (find-entry ifd +strip-byte-counts+))
 	   (count (ifd-entry-count entry))
 	   (strip-byte-counts (ifd-entry-values entry)))
+      (format t "Image for entry ~A: ~S~%" (ifd-name ifd) entry)
       (cond ((= count 1)
 	     (writer-align-2 writer)
 	     (resolve-forward-ref writer ref)

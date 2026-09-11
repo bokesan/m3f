@@ -29,7 +29,7 @@
   (tag 0 :type (unsigned-byte 16) :read-only t)
   (type 0 :type (integer 1 12) :read-only t)
   (count 0 :type (unsigned-byte 32) :read-only t)
-  ;; If count = 1, values is the single value. Otherwise, it's a vector the values.
+  ;; If count = 1, values is the single value. Otherwise, it's a vector of the values.
   ;; The exception is type ASCII, which may have a single string even with count > 1.
   (values nil :type (or atom simple-vector))
   (ifds (vector) :type (vector ifd)))

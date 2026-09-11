@@ -81,6 +81,11 @@
 
 
 (declaim (ftype (function (writer (unsigned-byte 8))) write-u8))
+
+(declaim (ftype (function (writer (simple-array (unsigned-byte 8) (*))
+				  &key (:start array-index) (:end (or null array-length))))
+		write-bytes))
+
 (declaim (ftype (function (writer (unsigned-byte 16))) write-u16))
 (declaim (ftype (function (writer (unsigned-byte 32))) write-u32))
 (declaim (ftype (function (writer (signed-byte 8))) write-s8))
@@ -95,8 +100,36 @@
   (write-u8-noflush writer byte)
   (flush-when-possible writer))
 
+(defun append-bytes (writer bs &key (start 0) end)
+  (declare (type array-index start)
+	   (type (or null array-length) end)
+	   (type (simple-array (unsigned-byte 8) (*)) bs)
+	   (type writer writer)
+	   (optimize speed))
+  (let* ((buf (writer-buf writer))
+	 (i (fill-pointer buf))
+	 (size (array-total-size buf))
+	 (free (- size i))
+	 (len (- (or end (length bs)) start)))
+    (when (> len free)
+      (adjust-array buf (+ size (- len free))))
+    (setf (fill-pointer buf) (+ i len))
+    (setf (subseq buf i (+ i len))
+	  (if (or (> start 0) end)
+	      (subseq bs start (or end (length bs)))
+	      bs))))
+
+
+(defun write-bytes (writer bs &key (start 0) end)
+  (if (and (> (length bs) 4) (writer-flush-fully writer))
+      (write-sequence bs (writer-stream writer) :start start :end end)
+      (append-bytes writer bs :start start :end end)))
+
 (defun write-s8 (writer byte)
   (write-u8 writer (if (minusp byte) (+ 256 byte) byte)))
+
+(defun write-sbytes (writer bs)
+  (loop for b across bs do (write-s8 writer b)))
 
 (defun write-u16 (writer word)
   (multiple-value-bind (b1 b0)
@@ -280,7 +313,11 @@ Otherwise, returns nil."
 	(val (ifd-entry-values entry)))
     (ecase (ifd-entry-type entry)
       ((#.+BYTE+ #.+UNDEFINED+)
-       (write-bytes writer val)
+       (if (vectorp val) (write-bytes writer val) (write-u8 writer val))
+       (dotimes (i (- 4 count))
+	 (write-u8 writer 0)))
+      (#.+SBYTE+
+       (if (vectorp val) (write-sbytes writer val) (write-s8 writer val))
        (dotimes (i (- 4 count))
 	 (write-u8 writer 0)))
       (#.+ASCII+
@@ -314,21 +351,6 @@ Otherwise, returns nil."
       (#.+SLONG+ (write-s32 writer val))
       ;; TODO: +FLOAT+
       )))
-
-(defun write-bytes (writer bs &key (start 0) end)
-  (declare (type writer writer)
-	   (type (or (unsigned-byte 8) (simple-array (unsigned-byte 8) (*))) bs)
-	   (type array-index start)
-	   (type (or null array-index) end)
-	   (optimize speed))
-  (if (vectorp bs)
-      (if (and (> (length bs) 4) (writer-flush-fully writer))
-	  (write-sequence bs (writer-stream writer) :start start :end end)
-	  (if (or (plusp start) end)
-	      (loop for i from start below end do
-		    (write-u8 writer (aref bs i)))
-	      (loop for b across bs do (write-u8 writer b))))
-      (write-u8 writer bs)))
 
 
 (defun write-ifd-entry-ifd-value (writer entry image-refs)

@@ -20,13 +20,14 @@
 	(privacy (clingon:getopt cmd :privacy))
 	(decode-words (clingon:getopt cmd :decode-words))
 	(x-mode (clingon:getopt cmd :x-mode))
-	(copy-mode (clingon:getopt cmd :copy))
+	(fnumber (clingon:getopt cmd :fnumber))
+	(lens (clingon:getopt cmd :lens))
 	(verbose (clingon:getopt cmd :verbose))
 	(max-bytes (clingon:getopt cmd :max-bytes)))
     (if (null files)
 	(clingon:print-usage cmd t)
 	(dolist (f files)
-	  (when (and (cdr files) (not (or x-mode copy-mode)))
+	  (when (and (cdr files) (not (or x-mode fnumber lens)))
 	    (format t "======== ~A~%" f))
 	  (handler-case
 	      (let ((tiff (tiff:read-tiff f :max-bytes max-bytes)))
@@ -34,9 +35,9 @@
 		       (when verbose
 			 (format t "~A:~%" f))
 		       (report:experimental tiff x-mode))
-		      (copy-mode
+		      ((or fnumber lens)
 		       (when verbose (format t "Copying ~A...~%" f))
-		       (tiff::test-copy f))
+		       (tiff::test-copy f :fnumber fnumber :lens lens))
 		      ((not (or detail unknown map-p))
 		       (report:summary tiff :privacy privacy))
 		      (t (when (or detail unknown)
@@ -61,8 +62,12 @@
     :short-name #\v :long-name "verbose"
     :key :verbose
     :description "more verbose output")
-   (clingon:make-option :flag :long-name "copy" :key :copy
-			:description "copy image without any changes")
+   (clingon:make-option
+    :string :long-name "fnumber" :description "set the F-Number"
+    :key :fnumber)
+   (clingon:make-option
+    :string :long-name "lens" :description "set the lens"
+    :key :lens)
    (clingon:make-option
     :integer
     :short-name #\X

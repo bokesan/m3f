@@ -424,8 +424,13 @@ Otherwise, returns nil."
 		   (resolve-forward-ref writer ref-addr)
 		   (write-bytes writer (ifd-image ifd) :start offs :end (+ offs len))))))))
 
-(defun test-copy (file)
+(defun test-copy (file &key fnumber lens)
+  
   (let* ((*read-images* t)
 	 (tiff (read-tiff file))
 	 (name (concatenate 'string "copy-of-" (file-namestring file))))
+    (when fnumber
+      (set-exif-tag-when-empty tiff #x829d +RATIONAL+ fnumber))
+    (when lens
+      (set-exif-tag-when-empty tiff #xa434 +ASCII+ lens))
     (save-tiff name tiff)))

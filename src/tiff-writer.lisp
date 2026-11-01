@@ -424,13 +424,47 @@ Otherwise, returns nil."
 		   (resolve-forward-ref writer ref-addr)
 		   (write-bytes writer (ifd-image ifd) :start offs :end (+ offs len))))))))
 
+
+(declaim (ftype (function ((vector ifd-entry) ifd-entry) (vector ifd-entry)) insert-entry))
+(defun insert-entry (entries entry)
+  (let* ((n (length entries))
+	 (tag (ifd-entry-tag entry))
+	 (i (do ((i 0 (+ i 1)))
+		((or (>= i n) (>= (ifd-entry-tag (aref entries i)) tag))
+		 i))))
+    (cond ((>= i n) (concatenate 'vector entries (list entry)))
+	  ((= (ifd-entry-tag (aref entries i)) tag)
+	   (setf (aref entries i) entry)
+	   entries)
+	  (t (concatenate 'vector (subseq entries 0 i) (list entry) (subseq entries i))))))
+
+(defun new-entry (tag type value)
+  (if (= type +ASCII+)
+      (make-ifd-entry :tag tag :type type :count (+ (length value) 1) :values value)
+      (make-ifd-entry :tag tag :type type :count 1 :values value)))
+
+
+(defun set-tag-when-empty (ifd tag type value)
+  (let* ((entries (ifd-entries ifd))
+	 (i (position tag entries :key #'ifd-entry-tag)))
+    (if i
+	(when (empty-value-p (aref entries i))
+	  (setf (aref entries i)
+		(new-entry tag type value)))
+	(let ((entry (new-entry tag type value)))
+	  (setf (ifd-entries ifd)
+		(insert-entry entries entry))))))
+	  
+
 (defun test-copy (file &key fnumber lens)
-  
   (let* ((*read-images* t)
 	 (tiff (read-tiff file))
+	 (exif (find-ifd "ExifIFD0" tiff))
 	 (name (concatenate 'string "copy-of-" (file-namestring file))))
+    (unless exif
+      (error "Exif IFD not found"))
     (when fnumber
-      (set-exif-tag-when-empty tiff #x829d +RATIONAL+ fnumber))
+      (set-tag-when-empty exif #x829d +RATIONAL+ (rationalize (read-from-string fnumber))))
     (when lens
-      (set-exif-tag-when-empty tiff #xa434 +ASCII+ lens))
+      (set-tag-when-empty exif #xa434 +ASCII+ lens))
     (save-tiff name tiff)))

@@ -36,10 +36,18 @@
   (values nil :type (or atom simple-vector))
   (ifds (vector) :type (vector ifd)))
 
+(declaim (ftype (function (ifd-entry) boolean) empty-value-p))
+(defun empty-value-p (entry)
+  (let ((v (ifd-entry-values entry)))
+    (or (null v)
+	(and (vectorp v) (zerop (length v)))
+	(equal v "Unknown")
+	(and (numberp v) (zerop v)))))
+
 (defstruct ifd
   (name "" :type string :read-only t)
   (address 0 :type (unsigned-byte 32) :read-only t)
-  (entries nil :type (simple-array ifd-entry (*)) :read-only t)
+  (entries nil :type (simple-array ifd-entry (*)))
   (original-image-offset nil :type (or null (unsigned-byte 32)))
   (image nil :type (or null (simple-array (unsigned-byte 8) (*)))))
 

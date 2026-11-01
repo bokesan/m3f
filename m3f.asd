@@ -16,7 +16,7 @@
   :build-operation program-op
   :build-pathname "m3f"
   :entry-point "cli:main"
-  :depends-on ("m3f" "clingon")
+  :depends-on ("m3f" "clingon" #+ECL "asdf")
   :components ((:file "src/cli")))
 
 (defsystem "m3f/tests"

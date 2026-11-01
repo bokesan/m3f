@@ -21,7 +21,7 @@
   (%make-writer
    :stream stream
    :big-endian-p big-endian
-   :buf (make-array +BLOCK-SIZE+ :element-type '(unsigned-byte 8) :fill-pointer 0)))
+   :buf (make-array +BLOCK-SIZE+ :element-type '(unsigned-byte 8) :fill-pointer 0 :adjustable t)))
 
 (declaim (inline writer-current-pos))
 (defun writer-current-pos (writer)

@@ -6,6 +6,8 @@
            :*read-images*
            :ifd :ifd-name :ifd-address :ifd-entries
            :ifd-entry :ifd-entry-tag :ifd-entry-type :ifd-entry-count :ifd-entry-values
+	   :find-ifd
+	   :map-ifds
 	   :make-tag-table :*standard-tags*
 	   :tiff-type-name
 	   :metering-mode-name
@@ -94,6 +96,41 @@
             (let ((value (ifd-entry-values entry)))
 	      (unless (or (null value) (equalp value ""))
 		(return-from tag-value value))))))))
+
+
+(declaim (ftype (function (string tiff) (or null ifd)) find-ifd))
+(defun find-ifd (name tiff)
+  (labels ((ifds (ifds)
+	     (map 'nil
+		  #'(lambda (ifd)
+		      (when (string= (ifd-name ifd) name)
+			(return-from find-ifd ifd))
+		      (map 'nil 
+			   #'(lambda (e) (ifds (ifd-entry-ifds e)))
+			   (ifd-entries ifd)))
+		  ifds)))
+    (ifds (tiff-ifds tiff))))
+  
+(defun map-ifds (f tiff &key (order :bfs))
+  (declare (type tiff tiff)
+	   (type (member :bfs :dfs) order))
+  (labels ((ifds-bfs (ifds)
+	     (nconc (map 'list f ifds)
+		    (mapcan #'collect-from-entries (coerce ifds 'list))))
+	   (collect-from-entries (ifd)
+	     (mapcan #'(lambda (e)
+			 (ifds-bfs (ifd-entry-ifds e)))
+		     (coerce (ifd-entries ifd) 'list)))
+	   (ifds-dfs (ifds)
+	     (mapcan #'(lambda (ifd)
+			 (cons (funcall f ifd)
+			       (mapcan #'(lambda (e)
+					   (ifds-dfs (ifd-entry-ifds e)))
+				       (coerce (ifd-entries ifd) 'list))))
+		     (coerce ifds 'list))))
+    (ecase order
+      (:bfs (ifds-bfs (tiff-ifds tiff)))
+      (:dfs (ifds-dfs (tiff-ifds tiff))))))
 
 
 (declaim (ftype (function (tiff &key (:order (member :breadth-first :depth-first)))

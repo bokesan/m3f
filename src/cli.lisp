@@ -1,5 +1,7 @@
 (defpackage :cli
   (:use :cl)
+  (:import-from :clingon :option :option-value)
+  (:import-from :utils :parse-as-rational)
   (:export :main))
 
 (in-package :cli)
@@ -11,6 +13,43 @@
 (defparameter *description* "Extract metadata from Hasselblad raw images.")
 
 
+;;; Clingon :rational option
+
+(defun parse-rational-or-lose (s)
+  (let ((val (parse-as-rational s)))
+    (unless val
+      (error 'option-derive-error :reason (format nil "Cannot parse ~A as rational" s)))
+    val))
+
+(defclass option-rational (option)
+  ()
+  (:default-initargs :parameter "RATIONAL")
+  (:documentation "An option for rational numbers"))
+
+(defmethod clingon:make-option ((kind (eql :rational)) &rest rest)
+  (apply #'make-instance 'option-rational rest))
+
+(defmethod clingon:initialize-option ((option option-rational) &key)
+  "Initializes the rational option. In case the option was
+  first initialized by other means, such as environment variables,
+  we make sure that the provided value is a valid rational number."
+  (call-next-method)
+
+  ;; Nothing to initialize further
+  (unless (option-value option)
+    (return-from clingon:initialize-option))
+
+  (let ((value (option-value option)))
+    (setf (option-value option)
+          (etypecase value
+            (rational value)
+            (string (parse-rational-or-lose value))))))
+
+(defmethod clingon:derive-option-value ((option option-rational) arg &key)
+  (parse-rational-or-lose arg))
+
+
+
 (defun top-level/handler (cmd)
   (let ((files (clingon:command-arguments cmd))
 	(map-p (clingon:getopt cmd :map))
@@ -20,14 +59,15 @@
 	(privacy (clingon:getopt cmd :privacy))
 	(decode-words (clingon:getopt cmd :decode-words))
 	(x-mode (clingon:getopt cmd :x-mode))
-	(fnumber (clingon:getopt cmd :fnumber))
+	(f-number (clingon:getopt cmd :f-number))
+	(focal-length (clingon:getopt cmd :focal-length))
 	(lens (clingon:getopt cmd :lens))
 	(verbose (clingon:getopt cmd :verbose))
 	(max-bytes (clingon:getopt cmd :max-bytes)))
     (if (null files)
 	(clingon:print-usage cmd t)
 	(dolist (f files)
-	  (when (and (cdr files) (not (or x-mode fnumber lens)))
+	  (when (and (cdr files) (not (or x-mode f-number lens)))
 	    (format t "======== ~A~%" f))
 	  (handler-case
 	      (let ((tiff (tiff:read-tiff f :max-bytes max-bytes)))
@@ -35,9 +75,9 @@
 		       (when verbose
 			 (format t "~A:~%" f))
 		       (report:experimental tiff x-mode))
-		      ((or fnumber lens)
+		      ((or f-number focal-length lens)
 		       (when verbose (format t "Copying ~A...~%" f))
-		       (tiff::test-copy f :fnumber fnumber :lens lens))
+		       (tiff::test-copy f :f-number f-number :lens lens :focal-length focal-length))
 		      ((not (or detail unknown map-p))
 		       (report:summary tiff :privacy privacy))
 		      (t (when (or detail unknown)
@@ -63,8 +103,11 @@
     :key :verbose
     :description "more verbose output")
    (clingon:make-option
-    :string :long-name "fnumber" :description "set the F-Number"
-    :key :fnumber)
+    :rational :long-name "fnumber" :description "set the F-number"
+    :key :f-number)
+   (clingon:make-option
+    :rational :long-name "focallength" :description "set the focal length"
+    :key :focal-length)
    (clingon:make-option
     :string :long-name "lens" :description "set the lens"
     :key :lens)

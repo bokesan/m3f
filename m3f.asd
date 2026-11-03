@@ -5,7 +5,8 @@
   :license "MIT"
   :depends-on ("alexandria")
   :pathname "src"
-  :components ((:file "binary")
+  :components ((:file "utils")
+	       (:file "binary")
 	       (:file "tiff" :depends-on ("binary"))
 	       (:file "tiff-tags" :depends-on ("tiff"))
 	       (:file "tiff-writer" :depends-on ("tiff"))

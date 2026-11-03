@@ -456,15 +456,17 @@ Otherwise, returns nil."
 		(insert-entry entries entry))))))
 	  
 
-(defun test-copy (file &key fnumber lens)
+(defun test-copy (file &key lens f-number focal-length)
   (let* ((*read-images* t)
 	 (tiff (read-tiff file))
 	 (exif (find-ifd "ExifIFD0" tiff))
 	 (name (concatenate 'string "copy-of-" (file-namestring file))))
     (unless exif
       (error "Exif IFD not found"))
-    (when fnumber
-      (set-tag-when-empty exif #x829d +RATIONAL+ (rationalize (read-from-string fnumber))))
+    (when focal-length
+      (set-tag-when-empty exif #x920A +RATIONAL+ focal-length))
+    (when f-number
+      (set-tag-when-empty exif #x829D +RATIONAL+ f-number))
     (when lens
-      (set-tag-when-empty exif #xa434 +ASCII+ lens))
+      (set-tag-when-empty exif #xA434 +ASCII+ lens))
     (save-tiff name tiff)))

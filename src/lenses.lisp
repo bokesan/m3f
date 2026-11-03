@@ -1,5 +1,5 @@
 (defpackage :lenses
-  (:use :cl)
+  (:use :cl :utils)
   (:export :lens :lens-p :make-lens
 	   :lens-focal-length
 	   :lens-max-aperture
@@ -29,7 +29,8 @@
 
 (defstruct (lens (:constructor %make-lens))
   (name nil :type string)
-  (nicknames nil :type sequence)
+  (make nil :type (or null string))
+  (nicknames nil :type list)
   (serial-number nil :type (or null string))
   (min-focal-length 0 :type rational)
   (max-focal-length 0 :type rational)
@@ -75,3 +76,64 @@
 	      :max-focal-length max-focal-length
 	      :max-aperture-at-min-focal-length max-aperture-at-min-focal-length
 	      :max-aperture-at-max-focal-length max-aperture-at-max-focal-length))
+
+
+(defun nullify-empty-sequence (s)
+  (if (zerop (length s)) nil s))
+
+(defun stringify (obj)
+  (nullify-empty-sequence
+   (typecase obj
+     (string obj)
+     (symbol (string obj))
+     (t (format nil "~A" obj)))))
+
+(defun as-rational (obj)
+  (etypecase obj
+    (rational obj)
+    (float (rationalize obj))
+    (string (or (parse-as-rational obj) 0))
+    (null 0)))
+
+(defun parse-lens (form)
+  "Parse lens from a form ((key1 value1 ...) (key2 value2 ...) ...)."
+  (let ((lens (%make-lens)))
+    (loop for (key value . other-values) in form do
+	  (case key
+	    (name
+	     (setf (lens-name lens) (stringify value))
+	     (push (mapcar #'stringify other-values) (lens-nicknames lens)))
+	    (nicknames
+	     (push (stringify value) (lens-nicknames lens))
+	     (push (mapcar #'stringify other-values) (lens-nicknames lens)))
+	    (serial-number
+	     (setf (lens-serial-number lens) (stringify value)))
+	    (make
+	     (setf (lens-make lens) (stringify value)))
+	    (focal-length
+	     (let* ((fl1 (as-rational value))
+		    (fl2 (if other-values (as-rational (car other-values)) fl1)))
+	       (setf (lens-min-focal-length lens) fl1
+		     (lens-max-focal-length lens) fl2)))
+	    (max-aperture
+	     (let* ((ap1 (as-rational value))
+		    (ap2 (if other-values (as-rational (car-other-values)) ap1)))
+	       (setf (lens-max-aperture-at-min-focal-length lens) ap1
+		     (lens-max-aperture-at-max-focal-length lens) ap2)))
+	    
+
+(defun read-lenses (stream)
+  (uiop:with-safe-io-syntax (:package :lenses)
+    (mapcar #'parse-lens
+	    (uiop:slurp-stream-forms stream :count 1000))))
+
+(defun lens-matches-p (lens &key name)
+  (when (stringp name)
+    (or (string-equal (lens-name lens) name)
+	(some #'(lambda (nick) (string-equal nick name)) (lens-nicknames lens)))))
+
+
+(defun find-lenses (lenses &key name)
+  (map 'list
+       #'(lambda (lens) (lens-matches-p lens :name name))
+       lenses))

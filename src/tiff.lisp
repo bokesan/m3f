@@ -153,7 +153,8 @@
 		     (loop for entry across (ifd-entries ifd) do
 			   (dfs (ifd-entry-ifds entry)))))
 	     (bfs (ifds)
-	       (error "BFS not implemenbted")))
+	       (declare (ignore ifds))
+	       (error "BFS not implemented")))
       (ecase order
 	(:depth-first (dfs (tiff-ifds tiff)))
 	(:breadth-first (bfs (tiff-ifds tiff))))
@@ -171,7 +172,7 @@
 (declaim (ftype (function (binary-buffer) tiff)
 		parse-tiff))
 
-(defun read-tiff (filename &key (max-bytes #xffffffff))
+(defun read-tiff (filename)
   "Read tiff file."
   (with-open-file (in filename :element-type '(unsigned-byte 8))
     (with-binary-buffer (raw in :chunk-size 8192)
@@ -329,9 +330,7 @@
 	   (setf (binary-buffer-big-endian-p bytes) t))
 	  (t (error "invalid byte order marker: ~2,'0x ~2,'0x" b0 b1)))
     (let* ((info (make-tiff :big-endian-p (binary-buffer-big-endian-p bytes)))
-	   (magic (get-u16 bytes 2))
-	   (ifds nil))
-      (declare (type list ifds))
+	   (magic (get-u16 bytes 2)))
       (unless (= magic 42)
 	(error "invalid magic number: ~a" magic))
       (note-region info 0 2 "BOM")

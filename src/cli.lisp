@@ -70,7 +70,7 @@
 	  (when (and (cdr files) (not (or x-mode f-number lens)))
 	    (format t "======== ~A~%" f))
 	  (handler-case
-	      (let ((tiff (tiff:read-tiff f :max-bytes max-bytes)))
+	      (let ((tiff (tiff:read-tiff f)))
 		(cond (x-mode
 		       (when verbose
 			 (format t "~A:~%" f))

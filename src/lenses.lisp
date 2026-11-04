@@ -28,7 +28,7 @@
 
 
 (defstruct (lens (:constructor %make-lens))
-  (name nil :type string)
+  (name "" :type string)
   (make nil :type (or null string))
   (nicknames nil :type list)
   (serial-number nil :type (or null string))
@@ -119,8 +119,57 @@
 	     (let* ((ap1 (as-rational value))
 		    (ap2 (if other-values (as-rational (car-other-values)) ap1)))
 	       (setf (lens-max-aperture-at-min-focal-length lens) ap1
-		     (lens-max-aperture-at-max-focal-length lens) ap2)))
-	    
+		     (lens-max-aperture-at-max-focal-length lens) ap2)))))))
+
+(declaim (inline first-char last-char))
+
+(defun first-char (s)
+  "First character of non-empty string."
+  (char s 0))
+
+(defun last-char (s)
+  "Last character of non-empty string."
+  (char s (- (length s) 1)))
+
+
+(defun read-config (stream)
+  "Read config file, returning a hash table containing the headers as keys
+and alists as values.
+Headers, keys, and values are always strings."
+  (let ((table (make-hash-table :test #'equalp))
+	(whitespace '(#\Space #\Tab))
+	(whitespace-and-brackets '(#\Space #\Tab #\[ #\])))
+    (labels ((accept (header entries)
+	       (declare (type string header)
+			(type list entries))
+	       (when entries
+		 (push (nreverse entries) (gethash header table nil))))
+	     
+	     (parse (header entries)
+	       (declare (type string header)
+			(type list entries))
+	       (let ((line (read-line stream nil)))
+		 (if (not line)
+		     (accept header entries)
+		     (let ((line (string-trim whitespace line)))
+		       (cond ((or (zerop (length line)) (char= (first-char line) #\#))
+			      (parse header entries))
+			     ((char= (first-char line) #\[)
+			      (unless (char= (last-char line) #\])
+				(error "[header] expected. ~S" line))
+			      (accept header entries)
+			      (parse (string-trim whitespace-and-brackets line) nil))
+			     (t (parse
+				 header
+				 (cons (let ((sep (position #\= line)))
+					 (if (not sep)
+					     (cons line "")
+					     (cons (string-right-trim whitespace (subseq line 0 sep))
+						   (string-left-trim whitespace (subseq line (+ sep 1))))))
+				       entries)))))))))
+      (parse "" nil)
+      table)))
+
 
 (defun read-lenses (stream)
   (uiop:with-safe-io-syntax (:package :lenses)

@@ -3,7 +3,7 @@
   :author (:read-file-form "src/cli.lisp" :at (3 2))
   :description (:read-file-form "src/cli.lisp" :at (4 2))
   :license "MIT"
-  :depends-on ("alexandria")
+  :depends-on ("alexandria" "ieee-floats")
   :pathname "src"
   :components ((:file "utils")
 	       (:file "binary")

@@ -1,13 +1,14 @@
 (defpackage :binary-buffer
   (:documentation "Binary stream with buffering, endian-ness conversion and random access.")
-  (:use :cl)
+  (:use :cl :ieee-floats)
   (:shadow :close)
   (:import-from :alexandria :array-length :array-index)
   (:export :binary-buffer :binary-buffer-p
 	   :binary-buffer-big-endian-p
 	   :binary-buffer-length
 	   :with-binary-buffer
-	   :get-u8 :get-s8 :get-u16 :get-s16 :get-u32 :get-s32 :get-bytes))
+	   :get-u8 :get-s8 :get-u16 :get-s16 :get-u32 :get-s32 :get-bytes
+	   :get-float :get-double))
 
 (in-package :binary-buffer)
 
@@ -77,7 +78,10 @@
   (ftype (function (binary-buffer array-index) (signed-byte 16)) get-s16)
   (ftype (function (binary-buffer array-index) (unsigned-byte 32)) get-u32)
   (ftype (function (binary-buffer array-index) (signed-byte 32)) get-s32)
-  (ftype (function (binary-buffer array-index array-length) (simple-array (unsigned-byte 8) 1)) get-bytes))
+  (ftype (function (binary-buffer array-index array-length) (simple-array (unsigned-byte 8) 1)) get-bytes)
+  (ftype (function (binary-buffer array-index) single-float) get-float)
+  (ftype (function (binary-buffer array-index) double-float) get-double))
+
 
 (defun get-u8 (bs offs)
   (declare (optimize speed))
@@ -145,3 +149,13 @@
 		   :start1 i :end1 (+ i n)
 		   :start2 chunk-offset :end2 (+ chunk-offset n))
 	  (incf i n))))))
+
+(defun get-float (bs offset)
+  (decode-float32 (get-u32 bs offset)))
+
+(defun get-double (bs offset)
+  (let ((u1 (get-u32 bs offset))
+	(u2 (get-u32 bs (+ offset 4))))
+    (decode-float64 (if (binary-buffer-big-endian-p bs)
+			(+ (ash u1 32) u2)
+			(+ u1 (ash u2 32))))))

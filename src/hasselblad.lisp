@@ -172,7 +172,11 @@ FL: ~A, ~2,'0x ~2,'0x"
     ;; 5F related to shutter type. On Mode A, 1 is leaf, 0 is electronic.
     ;;    But on FULL AUTO mode, it is always 5E == 2 and 5F == 0, regardless of shutter type
     (#x61 "LensSerialNumber")
-    (#x63 "ExactExposureTime")))
+    (#x63 "ExactExposureTime")
+    ;; Next three fields via https://blog.tonalphoto.com/hasselblad-x2d-ii-focus-distance/
+    (#x81 "Effective focal length")
+    (#x82 "Magnification ratio")
+    (#x83 "Internal lens position")))
 
 
 (defun decode-serial-number (s)

@@ -102,6 +102,9 @@
   (write-u8-noflush writer byte)
   (flush-when-possible writer))
 
+(defun write-zeros (writer n)
+  (loop for i from 0 below n do (write-u8 writer 0)))
+
 (defun append-bytes (writer bs &key (start 0) end)
   (declare (type array-index start)
 	   (type (or null array-length) end)
@@ -207,16 +210,21 @@
   (set-u32 writer ref (writer-current-pos writer)))
 
 
+(declaim (ftype (function (writer (or null real))) write-rational write-srational))
+
 (defun write-rational (writer r)
-  (let ((r (rationalize r)))
-    (write-u32 writer (numerator r))
-    (write-u32 writer (denominator r))))
+  (if r
+      (let ((r (rationalize r)))
+	(write-u32 writer (numerator r))
+	(write-u32 writer (denominator r)))
+      (write-zeros writer 8)))
 
 (defun write-srational (writer r)
-  (let ((r (rationalize r)))
-    (write-s32 writer (numerator r))
-    (write-s32 writer (denominator r))))
-
+  (if r
+      (let ((r (rationalize r)))
+	(write-s32 writer (numerator r))
+	(write-s32 writer (denominator r)))
+      (write-zeros writer 8)))
 
 (declaim
  (ftype (function (writer tiff)) write-tiff)

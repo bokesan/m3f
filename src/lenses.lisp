@@ -7,9 +7,10 @@
 	   :lens-max-focal-length
 	   :lens-max-aperture-at-min-focal-length
 	   :lens-max-aperture-at-max-focal-length
-	   :lens-name
+	   :lens-name :lens-make
 	   :lens-serial-number
-	   :lens-nicknames))
+	   :lens-nicknames
+	   :*lenses*))
 
 (in-package :lenses)
 
@@ -49,10 +50,11 @@
 			 min-focal-length max-focal-length
 			 max-aperture-at-min-focal-length
 			 max-aperture-at-max-focal-length
+			 make
 			 serial-number
 			 nicknames)
   (declare (type string name)
-	   (type (or null rational)
+	   (type (or null real)
 		 focal-length min-focal-length max-focal-length
 		 max-aperture-at-min-focal-length
 		 max-aperture-at-max-focal-length)
@@ -64,12 +66,19 @@
     (error "expected either :focal-length or :min-focal-length and :max-focal-length"))
   (unless (or (not min-focal-length) (<= min-focal-length max-focal-length))
     (error ":min-focal-length must be less than or equal to :max-focal-length"))
-  (when focal-length
-    (setf min-focal-length focal-length
-	  max-focal-length focal-length
-	  max-aperture-at-min-focal-length max-aperture
-	  max-aperture-at-max-focal-length max-aperture))
+  (if focal-length
+      (let ((fl (rationalize focal-length))
+	    (ap (rationalize max-aperture)))
+	(setf min-focal-length fl
+	      max-focal-length fl
+	      max-aperture-at-min-focal-length ap
+	      max-aperture-at-max-focal-length ap))
+      (setf min-focal-length (rationalize min-focal-length)
+	    max-focal-length (rationalize max-focal-length)
+	    max-aperture-at-min-focal-length (rationalize max-aperture-at-min-focal-length)
+	    max-aperture-at-max-focal-length (rationalize max-aperture-at-max-focal-length)))
   (%make-lens :name name
+	      :make make
 	      :serial-number serial-number
 	      :nicknames nicknames
 	      :min-focal-length min-focal-length
@@ -186,3 +195,18 @@ Headers, keys, and values are always strings."
   (map 'list
        #'(lambda (lens) (lens-matches-p lens :name name))
        lenses))
+
+(defparameter *sample-lenses*
+  (list (make-lens "NIKKOR-H 1:2.8 f=75mm"
+		   :make "Nikon"
+		   :focal-length 75
+		   :max-aperture 2.8
+		   :serial-number "776068"
+		   :nicknames '("75P"))))
+
+(defvar *lenses*
+  (let ((table (make-hash-table :test #'equalp)))
+    (mapc #'(lambda (lens)
+	      (mapc #'(lambda (nick) (setf (gethash nick table) lens)) (lens-nicknames lens)))
+	  *sample-lenses*)
+    table))

@@ -6,8 +6,9 @@
   :depends-on ("alexandria" "ieee-floats")
   :pathname "src"
   :components ((:file "utils")
+	       (:file "lenses")
 	       (:file "binary")
-	       (:file "tiff" :depends-on ("binary"))
+	       (:file "tiff" :depends-on ("binary" "lenses"))
 	       (:file "tiff-tags" :depends-on ("tiff"))
 	       (:file "tiff-writer" :depends-on ("tiff"))
 	       (:file "hasselblad")

@@ -1,5 +1,5 @@
 (defpackage :tiff
-  (:use :cl :binary-buffer)
+  (:use :cl :binary-buffer :lenses)
   (:import-from :alexandria :array-index :array-length :if-let :when-let)
   (:export :tiff :tiff-ifds :tiff-regions :read-tiff :tag-value
 	   :collect-ifds

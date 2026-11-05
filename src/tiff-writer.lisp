@@ -91,6 +91,8 @@
 (declaim (ftype (function (writer (signed-byte 8))) write-s8))
 (declaim (ftype (function (writer (signed-byte 16))) write-s16))
 (declaim (ftype (function (writer (signed-byte 32))) write-s32))
+(declaim (ftype (function (writer float)) write-float))
+(declaim (ftype (function (writer float)) write-double))
 
 (declaim (inline write-u8-noflush))
 (defun write-u8-noflush (writer byte)
@@ -165,6 +167,11 @@
 (defun write-s32 (writer n)
   (write-u32 writer (if (minusp n) (+ #x100000000 n) n)))
 
+(defun write-float (writer x)
+  (write-u32 writer (ieee-floats:encode-float32 x)))
+
+;; TODO: write-double
+
 (defun writer-align-2 (writer)
   (when (oddp (writer-current-pos writer))
     (write-u8 writer 0)))
@@ -201,12 +208,14 @@
 
 
 (defun write-rational (writer r)
-  (write-u32 writer (numerator r))
-  (write-u32 writer (denominator r)))
+  (let ((r (rationalize r)))
+    (write-u32 writer (numerator r))
+    (write-u32 writer (denominator r))))
 
 (defun write-srational (writer r)
-  (write-s32 writer (numerator r))
-  (write-s32 writer (denominator r)))
+  (let ((r (rationalize r)))
+    (write-s32 writer (numerator r))
+    (write-s32 writer (denominator r))))
 
 
 (declaim
@@ -439,9 +448,12 @@ Otherwise, returns nil."
 	  (t (concatenate 'vector (subseq entries 0 i) (list entry) (subseq entries i))))))
 
 (defun new-entry (tag type value)
-  (if (= type +ASCII+)
-      (make-ifd-entry :tag tag :type type :count (+ (length value) 1) :values value)
-      (make-ifd-entry :tag tag :type type :count 1 :values value)))
+  (cond ((= type +ASCII+)
+	 (make-ifd-entry :tag tag :type type :count (+ (length value) 1) :values value))
+	((vectorp value)
+	 (make-ifd-entry :tag tag :type type :count (length value) :values value))
+	(t
+	 (make-ifd-entry :tag tag :type type :count 1 :values value))))
 
 
 (defun set-tag-when-empty (ifd tag type value)
@@ -456,17 +468,46 @@ Otherwise, returns nil."
 		(insert-entry entries entry))))))
 	  
 
+(defun set-tag (ifd tag type value)
+  (let* ((entries (ifd-entries ifd))
+	 (i (position tag entries :key #'ifd-entry-tag)))
+    (if i
+	(setf (aref entries i)
+	      (new-entry tag type value))
+	(let ((entry (new-entry tag type value)))
+	  (setf (ifd-entries ifd)
+		(insert-entry entries entry))))))
+
+
 (defun test-copy (file &key lens f-number focal-length)
   (let* ((*read-images* t)
 	 (tiff (read-tiff file))
 	 (exif (find-ifd "ExifIFD0" tiff))
+	 (lensinfo nil)
 	 (name (concatenate 'string "copy-of-" (file-namestring file))))
     (unless exif
       (error "Exif IFD not found"))
+    (when lens
+      (setf lensinfo (gethash lens *lenses*))
+      (when lensinfo
+	(setf lens (lens-name lensinfo))))
+    (when (and lensinfo (not focal-length))
+      (setf focal-length (lens-focal-length lensinfo)))
     (when focal-length
       (set-tag-when-empty exif #x920A +RATIONAL+ focal-length))
     (when f-number
       (set-tag-when-empty exif #x829D +RATIONAL+ f-number))
     (when lens
       (set-tag-when-empty exif #xA434 +ASCII+ lens))
+    (when lensinfo
+      (when (lens-make lensinfo)
+	(set-tag exif #xA433 +ASCII+ (lens-make lensinfo)))
+      (when (lens-serial-number lensinfo)
+	(set-tag exif #xA435 +ASCII+ (lens-serial-number lensinfo)))
+      (set-tag exif #xA432 +RATIONAL+
+	       (vector
+		(lens-min-focal-length lensinfo)
+		(lens-max-focal-length lensinfo)
+		(lens-max-aperture-at-min-focal-length lensinfo)
+		(lens-max-aperture-at-max-focal-length lensinfo))))
     (save-tiff name tiff)))

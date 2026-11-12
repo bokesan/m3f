@@ -66,33 +66,37 @@
 	(max-bytes (clingon:getopt cmd :max-bytes)))
     (if (null files)
 	(clingon:print-usage cmd t)
-	(dolist (f files)
-	  (when (and (cdr files) (not (or x-mode f-number lens)))
-	    (format t "======== ~A~%" f))
-	  (handler-case
-	      (let ((tiff (tiff:read-tiff f)))
-		(cond (x-mode
-		       (when verbose
-			 (format t "~A:~%" f))
-		       (report:experimental tiff x-mode))
-		      ((or f-number focal-length lens)
-		       (when verbose (format t "Copying ~A...~%" f))
-		       (tiff::test-copy f :f-number f-number :lens lens :focal-length focal-length))
-		      ((not (or detail unknown map-p))
-		       (report:summary tiff :privacy privacy))
-		      (t (when (or detail unknown)
-			   (report:detail tiff
-					  :filter (cond ((and unknown privacy) :sensitive)
-							((and unknown diff) :diff)
-							(unknown :all)
-							(privacy :known-sensitive)
-							(diff :known-diff)
-							(t :known))
-					  :max-bytes max-bytes
-					  :words decode-words))
-			 (when map-p
-			   (report:layout tiff)))))
-	    (end-of-file () (format t "error: end of file encountered, malformed tiff?~%")))))))
+	(let ((config (config:load-config)))
+	  (dolist (f files)
+	    (when (and (cdr files) (not (or x-mode f-number lens)))
+	      (format t "======== ~A~%" f))
+	    (handler-case
+		(let ((tiff (tiff:read-tiff f)))
+		  (cond (x-mode
+			 (when verbose
+			   (format t "~A:~%" f))
+			 (report:experimental tiff x-mode))
+			((or f-number focal-length lens)
+			 (let ((lensinfo (gethash lens (lenses:from-config config))))
+			   (when (and lens (not lensinfo))
+			     (error "lens not found: ~S" lens))
+			   (when verbose (format t "Lens: ~S~%Copying ~A...~%" lensinfo f))
+			   (tiff::test-copy f :f-number f-number :lens lensinfo :focal-length focal-length)))
+			((not (or detail unknown map-p))
+			 (report:summary tiff :privacy privacy))
+			(t (when (or detail unknown)
+			     (report:detail tiff
+					    :filter (cond ((and unknown privacy) :sensitive)
+							  ((and unknown diff) :diff)
+							  (unknown :all)
+							  (privacy :known-sensitive)
+							  (diff :known-diff)
+							  (t :known))
+					    :max-bytes max-bytes
+					    :words decode-words))
+			   (when map-p
+			     (report:layout tiff)))))
+	      (end-of-file () (format t "error: end of file encountered, malformed tiff?~%"))))))))
 
 (defun top-level/options ()
   "Creates and returns the options for the top-level command"
@@ -166,6 +170,5 @@ The image count for exposure or focus bracket sequences is not omitted.")
    :handler #'top-level/handler))
 
 (defun main ()
-  (config:load-config)
   (let ((app (top-level/command)))
     (clingon:run app)))

@@ -491,18 +491,17 @@ Otherwise, returns nil."
   (let* ((*read-images* t)
 	 (tiff (read-tiff file))
 	 (exif (find-ifd "ExifIFD0" tiff))
-	 (lensinfo nil)
+	 (lensinfo lens)
 	 (name (concatenate 'string "copy-of-" (file-namestring file))))
     (unless exif
       (error "Exif IFD not found"))
-    (when lens
-      (setf lensinfo (gethash lens *lenses*))
-      (when lensinfo
-	(setf lens (lens-name lensinfo))))
+    (when lensinfo
+      (setf lens (lens-name lensinfo)))
     (when (and lensinfo (not focal-length))
       (setf focal-length (lens-focal-length lensinfo)))
     (when focal-length
-      (set-tag-when-empty exif #x920A +RATIONAL+ focal-length))
+      (set-tag-when-empty exif #x920A +RATIONAL+ focal-length)
+      (set-tag-when-empty exif #xA405 +SHORT+ (round (* focal-length 43/55))))
     (when f-number
       (set-tag-when-empty exif #x829D +RATIONAL+ f-number))
     (when lens

@@ -7,7 +7,7 @@
   :pathname "src"
   :components ((:file "utils")
 	       (:file "config")
-	       (:file "lenses")
+	       (:file "lenses" :depends-on ("utils"))
 	       (:file "binary")
 	       (:file "tiff" :depends-on ("binary" "lenses"))
 	       (:file "tiff-tags" :depends-on ("tiff"))

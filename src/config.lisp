@@ -28,15 +28,13 @@ name2 = value2
 ..."
   (declare (type stream stream)
 	   (type hash-table table))
-  (let ((table (make-hash-table :test #'equalp))
-	(whitespace '(#\Space #\Tab))
+  (let ((whitespace '(#\Space #\Tab))
 	(whitespace-and-brackets '(#\Space #\Tab #\[ #\])))
     (labels ((accept (header entries)
 	       (declare (type string header)
 			(type list entries))
 	       (when entries
-		 (setf (gethash header table)
-		       (append (nreverse entries) (gethash header table nil)))))
+		 (push (nreverse entries) (gethash header table nil))))
 	     
 	     (parse (header entries)
 	       (declare (type string header)

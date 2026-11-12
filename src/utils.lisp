@@ -1,7 +1,8 @@
 (defpackage :utils
   (:use :cl)
   (:import-from :alexandria :array-length)
-  (:export :parse-as-rational))
+  (:export :parse-as-rational
+	   :split-and-trim))
 
 (in-package :utils)
 
@@ -36,3 +37,9 @@ and S must not contain any whitespace."
 	      (rational x)
 	      (float (rationalize x))))
 	  nil))))
+
+
+(defun split-and-trim (sep string)
+  (declare (type string sep string))
+  (mapcar #'(lambda (s) (string-trim '(#\Space #\Tab) s))
+	  (uiop:split-string string :separator sep)))

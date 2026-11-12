@@ -166,5 +166,6 @@ The image count for exposure or focus bracket sequences is not omitted.")
    :handler #'top-level/handler))
 
 (defun main ()
+  (config:load-config)
   (let ((app (top-level/command)))
     (clingon:run app)))

@@ -6,6 +6,7 @@
   :depends-on ("alexandria" "ieee-floats")
   :pathname "src"
   :components ((:file "utils")
+	       (:file "config")
 	       (:file "lenses")
 	       (:file "binary")
 	       (:file "tiff" :depends-on ("binary" "lenses"))
@@ -25,4 +26,5 @@
     :depends-on ("fiveam" "m3f")
     :pathname "test"
     :components ((:file "tiff-tests")
+		 (:file "config-tests")
 		 (:file "report-tests")))

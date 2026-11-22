@@ -487,34 +487,36 @@ Otherwise, returns nil."
 		(insert-entry entries entry))))))
 
 
-(defun test-copy (file &key lens f-number focal-length)
+(defun write-metadata (file &key lens f-number focal-length output-dir)
+  (declare (type (or string pathname) file)
+	   (type (or null lens) lens)
+	   (type (or null rational) f-number focal-length)
+	   (type (or null pathname) output-dir))
   (let* ((*read-images* t)
 	 (tiff (read-tiff file))
 	 (exif (find-ifd "ExifIFD0" tiff))
-	 (lensinfo lens)
-	 (name (file-namestring file)))
+	 (name (if output-dir
+		   (merge-pathnames (file-namestring file) output-dir)
+		   file)))
     (unless exif
       (error "Exif IFD not found"))
-    (when lensinfo
-      (setf lens (lens-name lensinfo)))
-    (when (and lensinfo (not focal-length))
-      (setf focal-length (lens-focal-length lensinfo)))
+    (when (and lens (not focal-length))
+      (setf focal-length (lens-focal-length lens)))
     (when focal-length
       (set-tag-when-empty exif #x920A +RATIONAL+ focal-length)
       (set-tag-when-empty exif #xA405 +SHORT+ (round (* focal-length 43/55))))
     (when f-number
       (set-tag-when-empty exif #x829D +RATIONAL+ f-number))
     (when lens
-      (set-tag-when-empty exif #xA434 +ASCII+ lens))
-    (when lensinfo
-      (when (lens-make lensinfo)
-	(set-tag exif #xA433 +ASCII+ (lens-make lensinfo)))
-      (when (lens-serial-number lensinfo)
-	(set-tag exif #xA435 +ASCII+ (lens-serial-number lensinfo)))
+      (set-tag-when-empty exif #xA434 +ASCII+ (lens-name lens))
+      (when (lens-make lens)
+	(set-tag exif #xA433 +ASCII+ (lens-make lens)))
+      (when (lens-serial-number lens)
+	(set-tag exif #xA435 +ASCII+ (lens-serial-number lens)))
       (set-tag exif #xA432 +RATIONAL+
 	       (vector
-		(lens-min-focal-length lensinfo)
-		(lens-max-focal-length lensinfo)
-		(lens-max-aperture-at-min-focal-length lensinfo)
-		(lens-max-aperture-at-max-focal-length lensinfo))))
+		(lens-min-focal-length lens)
+		(lens-max-focal-length lens)
+		(lens-max-aperture-at-min-focal-length lens)
+		(lens-max-aperture-at-max-focal-length lens))))
     (save-tiff name tiff :if-exists :rename)))

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-for raw in test/resources/*.3FR ; do
+for raw in test/resources/raw?.3FR ; do
     for flags in "" "-U" "-UV" "--privacy" ; do
 	name=`basename "$raw" .3FR`
 	if ./m3f $flags $raw | diff -tdu - "test/resources/$name$flags.txt" ; then

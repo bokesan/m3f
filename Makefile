@@ -20,6 +20,7 @@ unit-tests:
 
 test: m3f
 	test/test-output.sh
+	test/test-writing.sh
 
 clean:
 	$(RM) m3f

@@ -48,6 +48,23 @@
 (defmethod clingon:derive-option-value ((option option-rational) arg &key)
   (parse-rational-or-lose arg))
 
+;;; ---
+
+
+
+(declaim (ftype (function ((or null string)) (or null pathname)) ensure-directory))
+
+(defun ensure-directory (path)
+  "If PATH is not NIL, convert it to a directory pathname.
+Signal an error if that directory does not exist."
+  (if path
+      (let ((dir (uiop:ensure-directory-pathname path)))
+	(unless (uiop:directory-exists-p dir)
+	  (error "output folder not found: ~S" path))
+	dir)
+      nil))
+
+
 
 
 (defun top-level/handler (cmd)
@@ -62,11 +79,17 @@
 	(f-number (clingon:getopt cmd :f-number))
 	(focal-length (clingon:getopt cmd :focal-length))
 	(lens (clingon:getopt cmd :lens))
+	(output-dir (ensure-directory (clingon:getopt cmd :output-dir)))
 	(verbose (clingon:getopt cmd :verbose))
 	(max-bytes (clingon:getopt cmd :max-bytes)))
     (if (null files)
 	(clingon:print-usage cmd t)
-	(let ((config (config:load-config)))
+	(let ((config (config:load-config))
+	      (lensinfo nil))
+	  (when lens
+	    (setf lensinfo (gethash lens (lenses:from-config config)))
+	    (unless lensinfo
+	      (error "lens not found: ~S" lens)))
 	  (dolist (f files)
 	    (when (and (cdr files) (not (or x-mode f-number lens)))
 	      (format t "======== ~A~%" f))
@@ -77,11 +100,10 @@
 			   (format t "~A:~%" f))
 			 (report:experimental tiff x-mode))
 			((or f-number focal-length lens)
-			 (let ((lensinfo (gethash lens (lenses:from-config config))))
-			   (when (and lens (not lensinfo))
-			     (error "lens not found: ~S" lens))
-			   (when verbose (format t "Lens: ~S~%Copying ~A...~%" lensinfo f))
-			   (tiff::test-copy f :f-number f-number :lens lensinfo :focal-length focal-length)))
+			 (when verbose (format t "Lens: ~S~%Copying ~A...~%" lensinfo f))
+			 (tiff:write-metadata f :f-number f-number :lens lensinfo
+					      :focal-length focal-length
+					      :output-dir output-dir))
 			((not (or detail unknown map-p))
 			 (report:summary tiff :privacy privacy))
 			(t (when (or detail unknown)
@@ -96,7 +118,7 @@
 					    :words decode-words))
 			   (when map-p
 			     (report:layout tiff)))))
-	      (end-of-file () (format t "error: end of file encountered, malformed tiff?~%"))))))))
+	      (end-of-file () (format t "error in ~S: end of file encountered, malformed tiff?~%" f))))))))
 
 (defun top-level/options ()
   "Creates and returns the options for the top-level command"
@@ -115,6 +137,9 @@
    (clingon:make-option
     :string :long-name "lens" :description "set the lens"
     :key :lens)
+   (clingon:make-option
+    :string :short-name #\o :long-name "output-dir" :key :output-dir
+    :description "destination folder when writing metadata")
    (clingon:make-option
     :integer
     :short-name #\X

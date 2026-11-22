@@ -260,8 +260,8 @@
 	    (write-ifd-image writer ifd ref)))))
 
 
-(defun save-tiff (filename tiff)
-  (with-open-file (out filename :direction :output :if-exists :error :element-type '(unsigned-byte 8))
+(defun save-tiff (filename tiff &key (if-exists :error))
+  (with-open-file (out filename :direction :output :if-exists if-exists :element-type '(unsigned-byte 8))
     (let ((writer (make-writer out :big-endian (tiff-big-endian-p tiff))))
       (write-tiff writer tiff)
       (writer-flush writer))))
@@ -492,7 +492,7 @@ Otherwise, returns nil."
 	 (tiff (read-tiff file))
 	 (exif (find-ifd "ExifIFD0" tiff))
 	 (lensinfo lens)
-	 (name (concatenate 'string "copy-of-" (file-namestring file))))
+	 (name (file-namestring file)))
     (unless exif
       (error "Exif IFD not found"))
     (when lensinfo
@@ -517,4 +517,4 @@ Otherwise, returns nil."
 		(lens-max-focal-length lensinfo)
 		(lens-max-aperture-at-min-focal-length lensinfo)
 		(lens-max-aperture-at-max-focal-length lensinfo))))
-    (save-tiff name tiff)))
+    (save-tiff name tiff :if-exists :rename)))

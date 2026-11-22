@@ -77,11 +77,14 @@ Signal an error if that directory does not exist."
 (defun top-level/handler (cmd)
   (with-options (cmd
 		 (map-p detail unknown no-volatile privacy decode-words x-mode
-		  f-number focal-length lens output-dir force verbose max-bytes)
+		  f-number focal-length lens output-dir force verbose max-bytes
+		  config-file)
 		 files)
     (if (null files)
 	(clingon:print-usage cmd t)
-	(let ((config (config:load-config))
+	(let ((config (if config-file
+			  (config:read-config-file config-file)
+			  (config:load-config)))
 	      (lensinfo nil))
 	  (when lens
 	    (setf lensinfo (gethash lens (lenses:from-config config)))
@@ -120,6 +123,9 @@ Signal an error if that directory does not exist."
 (defun top-level/options ()
   "Creates and returns the options for the top-level command"
   (list
+   (clingon:make-option
+    :string :long-name "config" :key :config-file
+    :description "load configuration from this file instead of default locations")
    (clingon:make-option
     :flag
     :short-name #\v :long-name "verbose"

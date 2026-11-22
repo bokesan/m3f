@@ -303,6 +303,7 @@
       (map nil
 	   #'(lambda (e ref)
 	       (when (and ref (plusp (length (ifd-entry-ifds e))))
+		 ;; TODO: support writing multiple IFDs
 		 (writer-align-2 writer)
 		 (resolve-forward-ref writer ref)
 		 (write-ifd-entry-ifd-value writer e image-refs)))
@@ -487,7 +488,24 @@ Otherwise, returns nil."
 		(insert-entry entries entry))))))
 
 
-(defun write-metadata (file &key lens f-number focal-length output-dir)
+(defparameter *supported-cameras*
+  '(("Hasselblad CFV II 50C/907X" "1.5.2")
+    ("Hasselblad CFV 100C/907X" "4.0.0" "4.2.0")
+    ("Hasselblad CFV 100C/Electronic Shutter" "4.0.0" "4.2.0")))
+    
+
+(defun writing-supported-p (tiff)
+  "Check if writing this file is supported."
+  (let ((model (tag-value tiff #xC614))
+	(firmware-version (tag-value tiff #x0131)))
+    (some #'(lambda (spec)
+	      (destructuring-bind (camera &rest versions) spec
+		(and (string= model camera)
+		     (member firmware-version versions :test #'string=))))
+	  *supported-cameras*)))
+
+
+(defun write-metadata (file &key lens f-number focal-length output-dir force)
   (declare (type (or string pathname) file)
 	   (type (or null lens) lens)
 	   (type (or null rational) f-number focal-length)
@@ -498,6 +516,8 @@ Otherwise, returns nil."
 	 (name (if output-dir
 		   (merge-pathnames (file-namestring file) output-dir)
 		   file)))
+    (unless (or force (writing-supported-p tiff))
+      (error "this camera model and firmware version is not supported. Use --force to override."))
     (unless exif
       (error "Exif IFD not found"))
     (when (and lens (not focal-length))

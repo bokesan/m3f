@@ -65,23 +65,20 @@ Signal an error if that directory does not exist."
       nil))
 
 
+(defmacro with-options ((cmd options &optional arguments) &body body)
+  (let ((binds (mapcar #'(lambda (sym)
+			   `(,sym (clingon:getopt ,cmd ,(intern (symbol-name sym) "KEYWORD"))))
+		       options)))
+    (when arguments
+      (push `(,arguments (clingon:command-arguments ,cmd)) binds))
+    `(let ,binds ,@body)))
 
 
 (defun top-level/handler (cmd)
-  (let ((files (clingon:command-arguments cmd))
-	(map-p (clingon:getopt cmd :map))
-	(detail (clingon:getopt cmd :detail))
-	(unknown (clingon:getopt cmd :unknown))
-	(diff (clingon:getopt cmd :no-volatile))
-	(privacy (clingon:getopt cmd :privacy))
-	(decode-words (clingon:getopt cmd :decode-words))
-	(x-mode (clingon:getopt cmd :x-mode))
-	(f-number (clingon:getopt cmd :f-number))
-	(focal-length (clingon:getopt cmd :focal-length))
-	(lens (clingon:getopt cmd :lens))
-	(output-dir (ensure-directory (clingon:getopt cmd :output-dir)))
-	(verbose (clingon:getopt cmd :verbose))
-	(max-bytes (clingon:getopt cmd :max-bytes)))
+  (with-options (cmd
+		 (map-p detail unknown no-volatile privacy decode-words x-mode
+		  f-number focal-length lens output-dir force verbose max-bytes)
+		 files)
     (if (null files)
 	(clingon:print-usage cmd t)
 	(let ((config (config:load-config))
@@ -100,19 +97,19 @@ Signal an error if that directory does not exist."
 			   (format t "~A:~%" f))
 			 (report:experimental tiff x-mode))
 			((or f-number focal-length lens)
-			 (when verbose (format t "Lens: ~S~%Copying ~A...~%" lensinfo f))
 			 (tiff:write-metadata f :f-number f-number :lens lensinfo
 					      :focal-length focal-length
-					      :output-dir output-dir))
+					      :output-dir output-dir
+					      :force force))
 			((not (or detail unknown map-p))
 			 (report:summary tiff :privacy privacy))
 			(t (when (or detail unknown)
 			     (report:detail tiff
 					    :filter (cond ((and unknown privacy) :sensitive)
-							  ((and unknown diff) :diff)
+							  ((and unknown no-volatile) :diff)
 							  (unknown :all)
 							  (privacy :known-sensitive)
-							  (diff :known-diff)
+							  (no-volatile :known-diff)
 							  (t :known))
 					    :max-bytes max-bytes
 					    :words decode-words))
@@ -140,6 +137,9 @@ Signal an error if that directory does not exist."
    (clingon:make-option
     :string :short-name #\o :long-name "output-dir" :key :output-dir
     :description "destination folder when writing metadata")
+   (clingon:make-option
+    :flag :long-name "force" :key :force
+    :description "force writing metadata for non-supported cameras or files")
    (clingon:make-option
     :integer
     :short-name #\X

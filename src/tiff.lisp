@@ -4,6 +4,7 @@
   (:export :tiff :tiff-ifds :tiff-regions :read-tiff :write-metadata :tag-value
 	   :collect-ifds
            :*read-images*
+	   :*supported-cameras*
            :ifd :ifd-name :ifd-address :ifd-entries
            :ifd-entry :ifd-entry-tag :ifd-entry-type :ifd-entry-count :ifd-entry-values
 	   :find-ifd

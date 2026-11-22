@@ -490,9 +490,9 @@ Otherwise, returns nil."
 
 (defparameter *supported-cameras*
   '(("Hasselblad CFV II 50C/907X" "1.5.2")
-    ("Hasselblad CFV 100C/907X" "4.0.0" "4.2.0")
-    ("Hasselblad CFV 100C/Electronic Shutter" "4.0.0" "4.2.0")))
-    
+    ("Hasselblad CFV 100C/907X" "4.0.0" "4.1.1" "4.2.0")
+    ("Hasselblad CFV 100C/Electronic Shutter" "4.0.0" "4.1.1" "4.2.0")))
+
 
 (defun writing-supported-p (tiff)
   "Check if writing this file is supported."
@@ -516,8 +516,11 @@ Otherwise, returns nil."
 	 (name (if output-dir
 		   (merge-pathnames (file-namestring file) output-dir)
 		   file)))
-    (unless (or force (writing-supported-p tiff))
-      (error "this camera model and firmware version is not supported. Use --force to override."))
+    (unless force
+      (unless (string-equal (pathname-type file) "3FR")
+	(error "Only .3FR files are supported. Use --force to override."))
+      (unless (writing-supported-p tiff)
+	(error "This camera model and firmware version is not supported. Use --force to override.")))
     (unless exif
       (error "Exif IFD not found"))
     (when (and lens (not focal-length))
